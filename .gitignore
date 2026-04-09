@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build
+.next/
+dist/
+.turbo/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Supabase
+supabase/.temp/
+
+# Debug
+npm-debug.log*
+pnpm-debug.log*

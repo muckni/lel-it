@@ -1,0 +1,115 @@
+// Project lifecycle phases
+export const PROJECT_PHASES = [
+  "maturation",
+  "feed",
+  "detailed_design",
+  "procurement",
+  "fabrication",
+  "installation",
+  "commissioning",
+  "operations",
+] as const;
+export type ProjectPhase = (typeof PROJECT_PHASES)[number];
+
+// Project status
+export const PROJECT_STATUSES = ["active", "archived"] as const;
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+// Interface register status
+export const REGISTER_STATUSES = ["draft", "active", "closed"] as const;
+export type RegisterStatus = (typeof REGISTER_STATUSES)[number];
+
+// Interface agreement status
+export const AGREEMENT_STATUSES = [
+  "draft",
+  "under_review",
+  "agreed",
+  "superseded",
+] as const;
+export type AgreementStatus = (typeof AGREEMENT_STATUSES)[number];
+
+// Interface point status
+export const POINT_STATUSES = [
+  "open",
+  "in_progress",
+  "resolved",
+  "closed",
+] as const;
+export type PointStatus = (typeof POINT_STATUSES)[number];
+
+// Interface point criticality
+export const CRITICALITIES = ["critical", "major", "minor"] as const;
+export type Criticality = (typeof CRITICALITIES)[number];
+
+// Interface query status
+export const QUERY_STATUSES = [
+  "open",
+  "responded",
+  "accepted",
+  "rejected",
+  "closed",
+] as const;
+export type QueryStatus = (typeof QUERY_STATUSES)[number];
+
+// Interface query priority
+export const QUERY_PRIORITIES = ["urgent", "high", "medium", "low"] as const;
+export type QueryPriority = (typeof QUERY_PRIORITIES)[number];
+
+// Deliverable status
+export const DELIVERABLE_STATUSES = [
+  "not_started",
+  "in_progress",
+  "submitted",
+  "accepted",
+  "rejected",
+] as const;
+export type DeliverableStatus = (typeof DELIVERABLE_STATUSES)[number];
+
+// IQ response status
+export const IQ_RESPONSE_STATUSES = [
+  "submitted",
+  "accepted",
+  "rejected",
+] as const;
+export type IqResponseStatus = (typeof IQ_RESPONSE_STATUSES)[number];
+
+// Project member roles
+export const MEMBER_ROLES = ["admin", "editor", "viewer"] as const;
+export type MemberRole = (typeof MEMBER_ROLES)[number];
+
+// Disciplines for interface agreements
+export const DISCIPLINES = [
+  "structural",
+  "electrical",
+  "mechanical",
+  "control_systems",
+  "marine",
+  "geotechnical",
+  "hse",
+  "other",
+] as const;
+export type Discipline = (typeof DISCIPLINES)[number];
+
+// Asset types for 3D visualization
+export const ASSET_TYPES = [
+  "turbine",
+  "foundation",
+  "oss",
+  "onshore_substation",
+  "array_cable",
+  "export_cable",
+  "met_mast",
+  "other",
+] as const;
+export type AssetType = (typeof ASSET_TYPES)[number];
+
+// Default work package templates
+export const DEFAULT_WORK_PACKAGES = [
+  { code: "WTG", name: "Wind Turbine Generator", color: "#3B82F6" },
+  { code: "FND", name: "Foundation", color: "#8B5CF6" },
+  { code: "ARR", name: "Array Cables", color: "#F59E0B" },
+  { code: "EXP", name: "Export Cable", color: "#EF4444" },
+  { code: "OSS", name: "Offshore Substation", color: "#10B981" },
+  { code: "ONS", name: "Onshore Substation", color: "#6366F1" },
+  { code: "INS", name: "Installation", color: "#EC4899" },
+] as const;
