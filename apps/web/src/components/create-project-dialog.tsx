@@ -91,6 +91,10 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
         portfolioId,
         name: values.name.trim(),
         description: values.description?.trim() || undefined,
+        phase: (values.phase || undefined) as
+          | "maturation" | "feed" | "detailed_design" | "procurement"
+          | "fabrication" | "installation" | "commissioning" | "operations"
+          | undefined,
       });
 
       await queryClient.invalidateQueries(trpc.portfolio.list.queryOptions());

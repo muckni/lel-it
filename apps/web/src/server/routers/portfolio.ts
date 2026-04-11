@@ -28,6 +28,10 @@ export const portfolioRouter = createTRPCRouter({
         portfolioId: z.string().uuid(),
         name: z.string().min(1).max(255),
         description: z.string().optional(),
+        phase: z.enum([
+          "maturation", "feed", "detailed_design", "procurement",
+          "fabrication", "installation", "commissioning", "operations",
+        ]).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -47,6 +51,7 @@ export const portfolioRouter = createTRPCRouter({
             portfolioId: input.portfolioId,
             name: input.name,
             description: input.description,
+            phase: input.phase,
           })
           .returning();
 
