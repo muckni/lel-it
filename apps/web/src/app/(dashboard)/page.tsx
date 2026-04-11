@@ -1,3 +1,7 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { useTRPC } from "@/trpc/client";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -7,14 +11,27 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  WindIcon,
-  ListIcon,
-  MessageSquareIcon,
-  AlertTriangleIcon,
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { WindIcon, FolderIcon, PlusIcon } from "lucide-react";
+import Link from "next/link";
+
+const PHASE_LABELS: Record<string, string> = {
+  maturation: "Maturation",
+  feed: "FEED",
+  detailed_design: "Detailed Design",
+  procurement: "Procurement",
+  fabrication: "Fabrication",
+  installation: "Installation",
+  commissioning: "Commissioning",
+  operations: "Operations",
+};
 
 export default function DashboardPage() {
+  const trpc = useTRPC();
+  const { data: portfolios = [], isLoading } = useQuery(trpc.portfolio.list.queryOptions());
+
+  const projects = portfolios.flatMap((p) => p.projects ?? []);
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -33,75 +50,58 @@ export default function DashboardPage() {
           </Breadcrumb>
         </div>
       </header>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Active Projects
-              </CardTitle>
-              <WindIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">2</div>
-              <p className="text-xs text-muted-foreground">
-                across your portfolio
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Interface Points
-              </CardTitle>
-              <ListIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">--</div>
-              <p className="text-xs text-muted-foreground">
-                total across all projects
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Open Queries</CardTitle>
-              <MessageSquareIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">--</div>
-              <p className="text-xs text-muted-foreground">
-                awaiting response
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Critical Items
-              </CardTitle>
-              <AlertTriangleIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">--</div>
-              <p className="text-xs text-muted-foreground">
-                require attention
-              </p>
-            </CardContent>
-          </Card>
+
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        <div>
+          <h1 className="text-2xl font-bold">Portfolio</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {projects.length} project{projects.length !== 1 ? "s" : ""}
+          </p>
         </div>
-        <div className="min-h-[400px] flex-1 rounded-xl border border-dashed border-border flex items-center justify-center">
-          <div className="text-center text-muted-foreground">
-            <WindIcon className="mx-auto h-12 w-12 mb-4" />
-            <h3 className="text-lg font-semibold">
-              Welcome to OWIT
-            </h3>
-            <p className="mt-1 text-sm">
-              Select a project from the sidebar or create a new one to get
-              started.
-            </p>
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : projects.length === 0 ? (
+          <div className="min-h-[400px] flex-1 rounded-xl border border-dashed flex items-center justify-center">
+            <div className="text-center text-muted-foreground max-w-sm">
+              <WindIcon className="mx-auto h-12 w-12 mb-4" />
+              <h3 className="text-lg font-semibold text-foreground">Welcome to OWIT</h3>
+              <p className="mt-1 text-sm">
+                No projects yet. Create your first project to get started.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => (
+              <Link key={project.id} href={`/projects/${project.id}`}>
+                <Card className="hover:bg-muted/30 transition-colors cursor-pointer h-full">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <FolderIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <CardTitle className="text-base">{project.name}</CardTitle>
+                      </div>
+                      {project.phase && (
+                        <Badge variant="secondary" className="text-xs shrink-0">
+                          {PHASE_LABELS[project.phase] ?? project.phase}
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      {project.description ?? "No description"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2 capitalize">
+                      {project.status?.replace(/_/g, " ") ?? "active"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

@@ -10,11 +10,13 @@ import {
   workPackages,
 } from "@owit/db";
 import { eq, inArray, sql, and } from "drizzle-orm";
+import { assertMember } from "@/server/lib/rbac";
 
 export const reportRouter = createTRPCRouter({
   projectSummary: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await assertMember(ctx.user.id, input.projectId);
       const { projectId } = input;
 
       // Get all registers for project

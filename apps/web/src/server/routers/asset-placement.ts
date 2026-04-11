@@ -2,6 +2,8 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { db, assetPlacements } from "@owit/db";
 import { eq } from "drizzle-orm";
+import { assertMember, requireRole } from "@/server/lib/rbac";
+import { projectIdForAssetPlacement } from "@/server/lib/project-id";
 
 const assetTypeEnum = z.enum([
   "turbine",
@@ -17,7 +19,8 @@ const assetTypeEnum = z.enum([
 export const assetPlacementRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await assertMember(ctx.user.id, input.projectId);
       return db.query.assetPlacements.findMany({
         where: eq(assetPlacements.projectId, input.projectId),
         orderBy: (a, { asc }) => [asc(a.assetType), asc(a.label)],
@@ -36,11 +39,9 @@ export const assetPlacementRouter = createTRPCRouter({
         rotationY: z.number().default(0),
       })
     )
-    .mutation(async ({ input }) => {
-      const [placement] = await db
-        .insert(assetPlacements)
-        .values(input)
-        .returning();
+    .mutation(async ({ input, ctx }) => {
+      await requireRole(ctx.user.id, input.projectId, "editor");
+      const [placement] = await db.insert(assetPlacements).values(input).returning();
       return placement;
     }),
 
@@ -55,8 +56,10 @@ export const assetPlacementRouter = createTRPCRouter({
         rotationY: z.number().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
+      const projectId = await projectIdForAssetPlacement(id);
+      await requireRole(ctx.user.id, projectId, "editor");
       const [placement] = await db
         .update(assetPlacements)
         .set(data)
@@ -67,21 +70,19 @@ export const assetPlacementRouter = createTRPCRouter({
 
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input }) => {
-      await db
-        .delete(assetPlacements)
-        .where(eq(assetPlacements.id, input.id));
+    .mutation(async ({ input, ctx }) => {
+      const projectId = await projectIdForAssetPlacement(input.id);
+      await requireRole(ctx.user.id, projectId, "editor");
+      await db.delete(assetPlacements).where(eq(assetPlacements.id, input.id));
       return { success: true };
     }),
 
-  // Seed a default layout for a wind farm project
   seedDemo: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .mutation(async ({ input }) => {
-      // 3x3 grid of turbine+foundation pairs + 1 OSS
-      const placements = [];
+    .mutation(async ({ input, ctx }) => {
+      await requireRole(ctx.user.id, input.projectId, "editor");
 
-      // OSS center-left
+      const placements = [];
       placements.push({
         projectId: input.projectId,
         assetType: "oss" as const,
@@ -92,7 +93,6 @@ export const assetPlacementRouter = createTRPCRouter({
         rotationY: 0,
       });
 
-      // 9 turbines in 3x3 grid
       let t = 1;
       for (let row = 0; row < 3; row++) {
         for (let col = 0; col < 3; col++) {

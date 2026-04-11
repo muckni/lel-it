@@ -1,14 +1,16 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { db, workPackages } from "@owit/db";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { DEFAULT_WORK_PACKAGES } from "@owit/shared";
-import { requireRole } from "@/server/lib/rbac";
+import { assertMember, requireRole } from "@/server/lib/rbac";
+import { projectIdForWorkPackage } from "@/server/lib/project-id";
 
 export const workPackageRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await assertMember(ctx.user.id, input.projectId);
       return db.query.workPackages.findMany({
         where: eq(workPackages.projectId, input.projectId),
         orderBy: workPackages.code,
@@ -43,8 +45,10 @@ export const workPackageRouter = createTRPCRouter({
         color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
+      const projectId = await projectIdForWorkPackage(id);
+      await requireRole(ctx.user.id, projectId, "editor");
       const [wp] = await db
         .update(workPackages)
         .set(data)
@@ -55,7 +59,9 @@ export const workPackageRouter = createTRPCRouter({
 
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      const projectId = await projectIdForWorkPackage(input.id);
+      await requireRole(ctx.user.id, projectId, "editor");
       await db.delete(workPackages).where(eq(workPackages.id, input.id));
       return { success: true };
     }),

@@ -12,8 +12,27 @@ import {
   interfaceQueries,
 } from "@owit/db";
 import { eq, and, inArray, sql, count } from "drizzle-orm";
-import { requireRole, getProjectRole } from "@/server/lib/rbac";
+import { requireRole, getProjectRole, assertMember } from "@/server/lib/rbac";
+import { TRPCError } from "@trpc/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+async function validateWorkPackagesBelongToProject(
+  workPackageIds: string[],
+  projectId: string
+): Promise<void> {
+  const pkgs = await db.query.workPackages.findMany({
+    where: eq(workPackages.projectId, projectId),
+    columns: { id: true },
+  });
+  const valid = new Set(pkgs.map((p) => p.id));
+  const invalid = workPackageIds.filter((id) => !valid.has(id));
+  if (invalid.length > 0) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Work packages do not belong to this project: ${invalid.join(", ")}`,
+    });
+  }
+}
 
 export const projectRouter = createTRPCRouter({
   // ── Queries ──────────────────────────────────────────────────────────────
@@ -21,6 +40,7 @@ export const projectRouter = createTRPCRouter({
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
+      await assertMember(ctx.user.id, input.id);
       const project = await db.query.projects.findFirst({
         where: eq(projects.id, input.id),
         with: { workPackages: { orderBy: workPackages.code } },
@@ -120,7 +140,8 @@ export const projectRouter = createTRPCRouter({
 
   listMembers: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await assertMember(ctx.user.id, input.projectId);
       const members = await db.query.projectMembers.findMany({
         where: eq(projectMembers.projectId, input.projectId),
         with: {
@@ -136,12 +157,13 @@ export const projectRouter = createTRPCRouter({
       let authUsers: Record<string, { email: string; name: string }> = {};
 
       if (userIds.length > 0) {
+        // P1-1: safe parameterized query — no sql.raw string interpolation
         const rows = await db.execute(
           sql`SELECT id::text, email, raw_user_meta_data->>'full_name' AS name
               FROM auth.users
-              WHERE id = ANY(${sql.raw(`ARRAY[${userIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})`
+              WHERE id = ANY(${userIds}::uuid[])`
         );
-        for (const row of rows as any[]) {
+        for (const row of rows as unknown as Array<{ id: string; email: string | null; name: string | null }>) {
           authUsers[row.id] = { email: row.email ?? "", name: row.name ?? row.email ?? "Unknown" };
         }
       }
@@ -194,9 +216,9 @@ export const projectRouter = createTRPCRouter({
         })
         .returning();
 
-      // Insert package assignments
+      // P1-2: validate work packages belong to this project
       if (input.workPackageIds.length > 0) {
-        // Clear existing, then insert fresh
+        await validateWorkPackagesBelongToProject(input.workPackageIds, input.projectId);
         await db
           .delete(memberWorkPackages)
           .where(eq(memberWorkPackages.memberId, member.id));
@@ -236,6 +258,10 @@ export const projectRouter = createTRPCRouter({
       }
 
       if (input.workPackageIds !== undefined) {
+        // P1-2: validate packages belong to this project
+        if (input.workPackageIds.length > 0) {
+          await validateWorkPackagesBelongToProject(input.workPackageIds, input.projectId);
+        }
         await db
           .delete(memberWorkPackages)
           .where(eq(memberWorkPackages.memberId, input.memberId));

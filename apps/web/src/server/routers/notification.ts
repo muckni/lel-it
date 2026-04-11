@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { db, notifications } from "@owit/db";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, count } from "drizzle-orm";
 
 export const notificationRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -13,8 +13,8 @@ export const notificationRouter = createTRPCRouter({
   }),
 
   unreadCount: protectedProcedure.query(async ({ ctx }) => {
-    const rows = await db
-      .select()
+    const [row] = await db
+      .select({ count: count() })
       .from(notifications)
       .where(
         and(
@@ -22,7 +22,7 @@ export const notificationRouter = createTRPCRouter({
           eq(notifications.read, false)
         )
       );
-    return { count: rows.length };
+    return { count: row.count };
   }),
 
   markRead: protectedProcedure

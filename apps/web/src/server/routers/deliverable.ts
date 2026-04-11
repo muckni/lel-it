@@ -1,18 +1,20 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
-import { db, deliverables, interfacePoints, interfaceAgreements } from "@owit/db";
+import { db, deliverables, interfacePoints } from "@owit/db";
 import { eq } from "drizzle-orm";
+import { assertMember, requireRole } from "@/server/lib/rbac";
+import { projectIdForDeliverable, projectIdForPoint } from "@/server/lib/project-id";
 import { logActivity } from "@/server/lib/log-activity";
 
 export const deliverableRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ interfacePointId: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      const projectId = await projectIdForPoint(input.interfacePointId);
+      await assertMember(ctx.user.id, projectId);
       return db.query.deliverables.findMany({
         where: eq(deliverables.interfacePointId, input.interfacePointId),
-        with: {
-          responsiblePackage: true,
-        },
+        with: { responsiblePackage: true },
         orderBy: deliverables.createdAt,
       });
     }),
@@ -28,11 +30,10 @@ export const deliverableRouter = createTRPCRouter({
         documentRef: z.string().url().optional(),
       })
     )
-    .mutation(async ({ input }) => {
-      const [deliverable] = await db
-        .insert(deliverables)
-        .values(input)
-        .returning();
+    .mutation(async ({ input, ctx }) => {
+      const projectId = await projectIdForPoint(input.interfacePointId);
+      await requireRole(ctx.user.id, projectId, "editor");
+      const [deliverable] = await db.insert(deliverables).values(input).returning();
       return deliverable;
     }),
 
@@ -44,13 +45,7 @@ export const deliverableRouter = createTRPCRouter({
         description: z.string().optional(),
         responsiblePackageId: z.string().uuid().optional(),
         status: z
-          .enum([
-            "not_started",
-            "in_progress",
-            "submitted",
-            "accepted",
-            "rejected",
-          ])
+          .enum(["not_started", "in_progress", "submitted", "accepted", "rejected"])
           .optional(),
         dueDate: z.string().optional(),
         documentRef: z.string().url().optional(),
@@ -58,29 +53,21 @@ export const deliverableRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
+      const projectId = await projectIdForDeliverable(id);
+      await requireRole(ctx.user.id, projectId, "editor");
+
       const [deliverable] = await db
         .update(deliverables)
         .set({ ...data, updatedAt: new Date() })
         .where(eq(deliverables.id, id))
         .returning();
 
-      // Log activity when status changes (non-blocking)
       if (data.status && deliverable) {
         (async () => {
-          const point = await db.query.interfacePoints.findFirst({
-            where: eq(interfacePoints.id, deliverable.interfacePointId),
-            with: {
-              agreement: {
-                with: { register: { columns: { projectId: true } } },
-              },
-            },
-          });
-          const projectId = point?.agreement?.register?.projectId;
-          if (!projectId) return;
           await logActivity({
             projectId,
-            userId: ctx.user!.id,
-            actorName: ctx.user!.email ?? "Unknown",
+            userId: ctx.user.id,
+            actorName: ctx.user.email ?? "Unknown",
             eventType: "deliverable.status_changed",
             entityType: "deliverable",
             entityId: deliverable.id,
@@ -95,7 +82,9 @@ export const deliverableRouter = createTRPCRouter({
 
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      const projectId = await projectIdForDeliverable(input.id);
+      await requireRole(ctx.user.id, projectId, "editor");
       await db.delete(deliverables).where(eq(deliverables.id, input.id));
       return { success: true };
     }),

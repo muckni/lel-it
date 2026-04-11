@@ -7,8 +7,8 @@ type Role = "viewer" | "editor" | "admin";
 const RANK: Record<Role, number> = { viewer: 0, editor: 1, admin: 2 };
 
 /**
- * Throws FORBIDDEN if the user doesn't hold at least `minRole` in the project.
- * Use at the top of any mutation that needs protection.
+ * Throws FORBIDDEN if the user doesn't hold at least `minRole`.
+ * Throws NOT_FOUND (masked as FORBIDDEN) if user is not a member at all.
  */
 export async function requireRole(
   userId: string,
@@ -30,6 +30,10 @@ export async function requireRole(
     });
   }
 }
+
+/** Alias: enforce project membership (read access) */
+export const assertMember = (userId: string, projectId: string) =>
+  requireRole(userId, projectId, "viewer");
 
 /** Returns the user's role, or null if not a member */
 export async function getProjectRole(
