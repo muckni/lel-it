@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
@@ -30,7 +30,7 @@ const PHASE_LABELS: Record<string, string> = {
   operations: "Operations",
 };
 
-export default function DashboardPage() {
+function DashboardContent() {
   const trpc = useTRPC();
   const searchParams = useSearchParams();
   const openedFromSearchParam = useRef(false);
@@ -132,5 +132,13 @@ export default function DashboardPage() {
         )}
       </div>
     </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<p className="p-6 text-sm text-muted-foreground">Loading…</p>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
