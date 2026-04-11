@@ -260,6 +260,60 @@ function EditMemberDialog({
   );
 }
 
+// ── Edit Work Package Dialog ──────────────────────────────────────────────────
+
+function EditWorkPackageDialog({
+  workPackage,
+  projectId,
+  onSuccess,
+}: {
+  workPackage: {
+    id: string;
+    code: string;
+    name: string;
+    description: string | null;
+    responsibleOrg: string | null;
+    color: string;
+  };
+  projectId: string;
+  onSuccess: () => void;
+}) {
+  const trpc = useTRPC();
+  const [open, setOpen] = useState(false);
+
+  const updateMutation = useMutation(
+    trpc.workPackage.update.mutationOptions({
+      onSuccess: () => { setOpen(false); onSuccess(); },
+    })
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={
+        <Button variant="ghost" size="icon" className="h-7 w-7">
+          <PencilIcon className="h-3.5 w-3.5" />
+        </Button>
+      } />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit {workPackage.code}</DialogTitle>
+        </DialogHeader>
+        <WorkPackageForm
+          defaultValues={{
+            code: workPackage.code,
+            name: workPackage.name,
+            description: workPackage.description ?? undefined,
+            responsibleOrg: workPackage.responsibleOrg ?? undefined,
+            color: workPackage.color,
+          }}
+          onSubmit={(v) => updateMutation.mutate({ id: workPackage.id, ...v })}
+          isLoading={updateMutation.isPending}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Role Badge ────────────────────────────────────────────────────────────────
 
 function RoleBadge({ role }: { role: string }) {
@@ -415,15 +469,22 @@ export default function SettingsPage() {
                         <span className="text-xs text-muted-foreground">{wp.responsibleOrg}</span>
                       )}
                       {canEdit && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => deleteWpMutation.mutate({ id: wp.id })}
-                          disabled={deleteWpMutation.isPending}
-                        >
-                          <Trash2Icon className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <EditWorkPackageDialog
+                            workPackage={wp}
+                            projectId={projectId}
+                            onSuccess={() => queryClient.invalidateQueries(trpc.workPackage.list.queryOptions({ projectId }))}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteWpMutation.mutate({ id: wp.id })}
+                            disabled={deleteWpMutation.isPending}
+                          >
+                            <Trash2Icon className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   ))}
