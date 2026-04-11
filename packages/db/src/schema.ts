@@ -389,6 +389,35 @@ export const notifications = pgTable(
   ]
 );
 
+export const activities = pgTable(
+  "activities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    // actor display name cached at write time
+    actorName: text("actor_name").notNull().default("Unknown"),
+    // e.g. 'interface_point.created', 'iq.raised', 'iq.responded', 'deliverable.accepted'
+    eventType: text("event_type").notNull(),
+    // e.g. 'interface_point' | 'interface_query' | 'deliverable'
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    // short human label for the entity, cached at write time
+    entityLabel: text("entity_label").notNull().default(""),
+    // optional extra context (e.g. new status value)
+    meta: jsonb("meta"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("activities_project_id_idx").on(table.projectId, table.createdAt),
+    index("activities_entity_idx").on(table.entityType, table.entityId),
+  ]
+);
+
 export const projectMembers = pgTable(
   "project_members",
   {
@@ -567,3 +596,10 @@ export const assetPlacementsRelations = relations(
     }),
   })
 );
+
+export const activitiesRelations = relations(activities, ({ one }) => ({
+  project: one(projects, {
+    fields: [activities.projectId],
+    references: [projects.id],
+  }),
+}));

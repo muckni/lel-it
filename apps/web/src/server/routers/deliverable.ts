@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
-import { db, deliverables } from "@owit/db";
+import { db, deliverables, interfacePoints, interfaceAgreements } from "@owit/db";
 import { eq } from "drizzle-orm";
+import { logActivity } from "@/server/lib/log-activity";
 
 export const deliverableRouter = createTRPCRouter({
   list: protectedProcedure
@@ -55,13 +56,40 @@ export const deliverableRouter = createTRPCRouter({
         documentRef: z.string().url().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
       const [deliverable] = await db
         .update(deliverables)
         .set({ ...data, updatedAt: new Date() })
         .where(eq(deliverables.id, id))
         .returning();
+
+      // Log activity when status changes (non-blocking)
+      if (data.status && deliverable) {
+        (async () => {
+          const point = await db.query.interfacePoints.findFirst({
+            where: eq(interfacePoints.id, deliverable.interfacePointId),
+            with: {
+              agreement: {
+                with: { register: { columns: { projectId: true } } },
+              },
+            },
+          });
+          const projectId = point?.agreement?.register?.projectId;
+          if (!projectId) return;
+          await logActivity({
+            projectId,
+            userId: ctx.user!.id,
+            actorName: ctx.user!.email ?? "Unknown",
+            eventType: "deliverable.status_changed",
+            entityType: "deliverable",
+            entityId: deliverable.id,
+            entityLabel: deliverable.title,
+            meta: { status: data.status },
+          });
+        })().catch(() => {});
+      }
+
       return deliverable;
     }),
 

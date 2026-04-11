@@ -21,6 +21,7 @@ const tabs = [
   { name: "Queries", href: "/queries" },
   { name: "3D View", href: "/3d-view" },
   { name: "Reports", href: "/reports" },
+  { name: "Activity", href: "/activity" },
   { name: "Settings", href: "/settings" },
 ];
 

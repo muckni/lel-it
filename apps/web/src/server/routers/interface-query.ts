@@ -9,6 +9,32 @@ import {
   interfaceRegisters,
 } from "@owit/db";
 import { eq, and, inArray, sql } from "drizzle-orm";
+import { logActivity } from "@/server/lib/log-activity";
+
+/** Resolve projectId from an interfacePointId via joins */
+async function projectIdForPoint(pointId: string): Promise<string | null> {
+  const point = await db.query.interfacePoints.findFirst({
+    where: eq(interfacePoints.id, pointId),
+    with: {
+      agreement: {
+        with: {
+          register: { columns: { projectId: true } },
+        },
+      },
+    },
+  });
+  return point?.agreement?.register?.projectId ?? null;
+}
+
+/** Resolve projectId from a queryId */
+async function projectIdForQuery(queryId: string): Promise<string | null> {
+  const query = await db.query.interfaceQueries.findFirst({
+    where: eq(interfaceQueries.id, queryId),
+    columns: { interfacePointId: true },
+  });
+  if (!query) return null;
+  return projectIdForPoint(query.interfacePointId);
+}
 
 export const interfaceQueryRouter = createTRPCRouter({
   // All IQs for a project (via register → agreement → point → query join)
@@ -167,6 +193,22 @@ export const interfaceQueryRouter = createTRPCRouter({
           dueDate: input.dueDate || null,
         })
         .returning();
+
+      // Log activity (non-blocking)
+      projectIdForPoint(input.interfacePointId).then((projectId) => {
+        if (!projectId) return;
+        logActivity({
+          projectId,
+          userId: ctx.user!.id,
+          actorName: ctx.user!.email ?? "Unknown",
+          eventType: "iq.raised",
+          entityType: "interface_query",
+          entityId: query.id,
+          entityLabel: `${code}: ${input.subject}`,
+          notificationMessage: `New IQ raised: ${code} — ${input.subject}`,
+        }).catch(() => {});
+      });
+
       return query;
     }),
 
@@ -230,10 +272,26 @@ export const interfaceQueryRouter = createTRPCRouter({
         .returning();
 
       // Update IQ status to responded
-      await db
+      const [updatedQuery] = await db
         .update(interfaceQueries)
         .set({ status: "responded" })
-        .where(eq(interfaceQueries.id, input.queryId));
+        .where(eq(interfaceQueries.id, input.queryId))
+        .returning();
+
+      // Log activity (non-blocking)
+      projectIdForQuery(input.queryId).then((projectId) => {
+        if (!projectId) return;
+        logActivity({
+          projectId,
+          userId: ctx.user!.id,
+          actorName: ctx.user!.email ?? "Unknown",
+          eventType: "iq.responded",
+          entityType: "interface_query",
+          entityId: input.queryId,
+          entityLabel: updatedQuery?.code ?? input.queryId,
+          notificationMessage: `IQ ${updatedQuery?.code ?? ""} has a new response`,
+        }).catch(() => {});
+      });
 
       return response;
     }),
@@ -247,7 +305,7 @@ export const interfaceQueryRouter = createTRPCRouter({
         resolution: z.enum(["accepted", "rejected"]),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       // Update response status
       await db
         .update(iqResponses)
@@ -255,10 +313,27 @@ export const interfaceQueryRouter = createTRPCRouter({
         .where(eq(iqResponses.id, input.responseId));
 
       // Update IQ status
-      await db
+      const [resolvedQuery] = await db
         .update(interfaceQueries)
         .set({ status: input.resolution })
-        .where(eq(interfaceQueries.id, input.queryId));
+        .where(eq(interfaceQueries.id, input.queryId))
+        .returning();
+
+      // Log activity (non-blocking)
+      projectIdForQuery(input.queryId).then((projectId) => {
+        if (!projectId) return;
+        logActivity({
+          projectId,
+          userId: ctx.user!.id,
+          actorName: ctx.user!.email ?? "Unknown",
+          eventType: `iq.${input.resolution}`,
+          entityType: "interface_query",
+          entityId: input.queryId,
+          entityLabel: resolvedQuery?.code ?? input.queryId,
+          meta: { resolution: input.resolution },
+          notificationMessage: `IQ ${resolvedQuery?.code ?? ""} response was ${input.resolution}`,
+        }).catch(() => {});
+      });
 
       return { success: true };
     }),
