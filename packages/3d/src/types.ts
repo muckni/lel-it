@@ -6,6 +6,9 @@ export interface AssetPlacement {
   positionY: number;
   positionZ: number;
   rotationY: number;
+  modelRegistryAssetId?: string | null;
+  modelUrl?: string | null;
+  lodLevel?: number;
 }
 
 export interface InterfacePointMarker {

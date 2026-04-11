@@ -6,6 +6,7 @@ import { OrbitControls, Grid, Environment } from "@react-three/drei";
 import { TurbineAsset } from "./assets/TurbineAsset";
 import { FoundationAsset } from "./assets/FoundationAsset";
 import { OSSAsset } from "./assets/OSSAsset";
+import { GltfAsset } from "./assets/GltfAsset";
 import { InterfacePointMarkers } from "./InterfacePointMarkers";
 import type { WindFarmSceneProps } from "../types";
 
@@ -33,6 +34,17 @@ function AssetRenderer({
     <>
       {assets.map((a) => {
         const pos: [number, number, number] = [a.positionX, a.positionY, a.positionZ];
+        if (a.modelUrl) {
+          return (
+            <GltfAsset
+              key={a.id}
+              url={a.modelUrl}
+              position={pos}
+              rotationY={a.rotationY}
+            />
+          );
+        }
+
         switch (a.assetType) {
           case "turbine":
             return (

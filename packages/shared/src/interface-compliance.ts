@@ -23,9 +23,18 @@ export const MATRIX_SCOPE_COLUMNS = [
   "off_c",
 ] as const;
 
+export type MatrixPhaseColumn = (typeof MATRIX_SCOPE_COLUMNS)[number];
 export type MatrixScopeAllocation = Partial<
-  Record<(typeof MATRIX_SCOPE_COLUMNS)[number], string>
+  Record<MatrixPhaseColumn, string>
 >;
+
+export type MatrixAllocationEntry = {
+  phaseColumn: MatrixPhaseColumn;
+  organizationId: string | null;
+  isResponsible: boolean;
+  isNotRelevant: boolean;
+  sortOrder: number;
+};
 
 const STATE_ORDER: InterfaceLifecycleState[] = [
   "draft_dir",
@@ -53,4 +62,23 @@ export function computeDefaultSlaDueAt(
   policy: SlaPolicy = DEFAULT_SLA_POLICY
 ): Date {
   return addDays(normalizeDateOnly(createdAt), policy.baseDays);
+}
+
+export function resolveRequiredMocApprovalLevels(input: {
+  costImpactEur: number | null;
+  scheduleImpact: boolean;
+  hseqImpact: boolean;
+}): Array<"engineering_manager" | "epc_director" | "project_director" | "steerco_excom"> {
+  const levels = new Set<
+    "engineering_manager" | "epc_director" | "project_director" | "steerco_excom"
+  >(["engineering_manager"]);
+  const cost = input.costImpactEur ?? 0;
+
+  if (cost < 250000) levels.add("epc_director");
+  if (cost >= 250000 || input.scheduleImpact || input.hseqImpact) {
+    levels.add("project_director");
+  }
+  if (cost >= 1000000) levels.add("steerco_excom");
+
+  return Array.from(levels);
 }

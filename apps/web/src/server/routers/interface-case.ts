@@ -1,8 +1,17 @@
 import { randomUUID } from "crypto";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, gte, isNotNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db, interfaceCases, interfacePoints, interfaceQueries, organizations } from "@owit/db";
+import {
+  db,
+  interfaceCases,
+  interfacePoints,
+  interfaceQueries,
+  interfaceTrackerCaseLinks,
+  mocChanges,
+  mocEntityLinks,
+  organizations,
+} from "@owit/db";
 import {
   INTERFACE_CASE_STATES,
   INTERFACE_PARTY_ROLES,
@@ -593,6 +602,126 @@ export const interfaceCaseRouter = createTRPCRouter({
         case: item,
         events: (timeline as unknown as any[]) ?? [],
       };
+    }),
+
+  linkTrackerItem: protectedProcedure
+    .input(
+      z.object({
+        caseId: z.string().uuid(),
+        trackerItemId: z.string().uuid(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const item = await db.query.interfaceCases.findFirst({
+        where: eq(interfaceCases.id, input.caseId),
+      });
+      if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Interface case not found" });
+      const member = await requireProjectMember(item.projectId, ctx.user.id);
+
+      const [linked] = await db
+        .insert(interfaceTrackerCaseLinks)
+        .values({
+          projectId: item.projectId,
+          caseId: item.id,
+          trackerItemId: input.trackerItemId,
+          linkedBy: ctx.user.id,
+        })
+        .onConflictDoNothing()
+        .returning();
+
+      await appendInterfaceCaseEvent({
+        caseId: item.id,
+        projectId: item.projectId,
+        eventType: "assignment_changed",
+        actorUserId: ctx.user.id,
+        actorMemberId: member.id,
+        summary: "Linked to tracker item",
+        payload: {
+          trackerItemId: input.trackerItemId,
+        },
+      });
+
+      return linked ?? { caseId: item.id, trackerItemId: input.trackerItemId };
+    }),
+
+  linkMoc: protectedProcedure
+    .input(
+      z.object({
+        caseId: z.string().uuid(),
+        mocChangeId: z.string().uuid(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const item = await db.query.interfaceCases.findFirst({
+        where: eq(interfaceCases.id, input.caseId),
+      });
+      if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Interface case not found" });
+
+      const moc = await db.query.mocChanges.findFirst({
+        where: eq(mocChanges.id, input.mocChangeId),
+      });
+      if (!moc) throw new TRPCError({ code: "NOT_FOUND", message: "MOC not found" });
+      if (moc.projectId !== item.projectId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "MOC and interface case must belong to the same project",
+        });
+      }
+
+      const member = await requireProjectMember(item.projectId, ctx.user.id);
+
+      const [link] = await db
+        .insert(mocEntityLinks)
+        .values({
+          projectId: item.projectId,
+          mocChangeId: moc.id,
+          entityType: "interface_case",
+          entityId: item.id,
+          linkedBy: ctx.user.id,
+        })
+        .onConflictDoNothing()
+        .returning();
+
+      await appendInterfaceCaseEvent({
+        caseId: item.id,
+        projectId: item.projectId,
+        eventType: "assignment_changed",
+        actorUserId: ctx.user.id,
+        actorMemberId: member.id,
+        summary: "Linked to MOC change",
+        payload: {
+          mocChangeId: moc.id,
+          mocId: moc.mocId,
+        },
+      });
+
+      return link ?? { caseId: item.id, mocChangeId: moc.id };
+    }),
+
+  listLinkedMocs: protectedProcedure
+    .input(z.object({ caseId: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      const item = await db.query.interfaceCases.findFirst({
+        where: eq(interfaceCases.id, input.caseId),
+      });
+      if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Interface case not found" });
+      await assertMember(ctx.user.id, item.projectId);
+
+      const links = await db.query.mocEntityLinks.findMany({
+        where: and(
+          eq(mocEntityLinks.projectId, item.projectId),
+          eq(mocEntityLinks.entityType, "interface_case"),
+          eq(mocEntityLinks.entityId, item.id)
+        ),
+      });
+
+      if (links.length === 0) return [];
+      const ids = links.map((link) => link.mocChangeId);
+
+      return db.query.mocChanges.findMany({
+        where: and(eq(mocChanges.projectId, item.projectId), inArray(mocChanges.id, ids)),
+        orderBy: [desc(mocChanges.updatedAt)],
+      });
     }),
 
   bulkMigrateFromLegacy: protectedProcedure

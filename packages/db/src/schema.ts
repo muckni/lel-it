@@ -130,6 +130,58 @@ export const interfaceCaseEventTypeEnum = pgEnum("interface_case_event_type", [
   "reopened",
 ]);
 
+export const matrixPhaseColumnEnum = pgEnum("matrix_phase_column", [
+  "spec",
+  "des",
+  "sup",
+  "on_a",
+  "on_t",
+  "on_c",
+  "off_t",
+  "off_i",
+  "off_c",
+]);
+
+export const trackerItemStatusEnum = pgEnum("tracker_item_status", [
+  "open",
+  "closed",
+  "info",
+  "hold",
+  "xclosed",
+]);
+
+export const mocStatusEnum = pgEnum("moc_status", [
+  "draft",
+  "under_review",
+  "approved",
+  "rejected",
+  "postponed",
+  "implemented",
+  "closed",
+]);
+
+export const mocImplementationStatusEnum = pgEnum("moc_implementation_status", [
+  "not_started",
+  "in_progress",
+  "implemented",
+  "audited",
+]);
+
+export const mocApprovalLevelEnum = pgEnum("moc_approval_level", [
+  "engineering_manager",
+  "epc_director",
+  "project_director",
+  "steerco_excom",
+  "additional",
+]);
+
+export const mocApprovalDecisionEnum = pgEnum("moc_approval_decision", [
+  "pending",
+  "approved",
+  "rejected",
+  "postponed",
+]);
+
 export const memberRoleEnum = pgEnum("member_role", [
   "admin",
   "editor",
@@ -509,6 +561,10 @@ export const assetPlacements = pgTable(
     positionY: real("position_y").notNull().default(0),
     positionZ: real("position_z").notNull().default(0),
     rotationY: real("rotation_y").notNull().default(0),
+    modelRegistryAssetId: uuid("model_registry_asset_id").references(
+      () => modelRegistryAssets.id
+    ),
+    lodLevel: integer("lod_level").notNull().default(0),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -519,6 +575,36 @@ export const assetPlacements = pgTable(
       table.projectId,
       table.assetType
     ),
+  ]
+);
+
+export const modelRegistryAssets = pgTable(
+  "model_registry_assets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    assetType: assetTypeEnum("asset_type").notNull(),
+    semanticTag: text("semantic_tag"),
+    versionLabel: text("version_label").notNull().default("v1"),
+    fileName: text("file_name").notNull(),
+    storagePath: text("storage_path").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    isActiveVersion: boolean("is_active_version").notNull().default(false),
+    uploadedByUserId: uuid("uploaded_by_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("model_registry_assets_project_idx").on(table.projectId, table.createdAt),
+    index("model_registry_assets_type_idx").on(table.projectId, table.assetType),
+    uniqueIndex("model_registry_assets_storage_path_idx").on(table.storagePath),
   ]
 );
 
@@ -709,6 +795,14 @@ export const interfaceMatrixRevisions = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     revisionLabel: text("revision_label").notNull(),
+    sourceDocumentRef: text("source_document_ref"),
+    issuedFor: text("issued_for"),
+    preparedBy: text("prepared_by"),
+    checkedBy: text("checked_by"),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    effectiveDate: date("effective_date"),
+    isLocked: boolean("is_locked").notNull().default(false),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdBy: uuid("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -734,9 +828,14 @@ export const interfaceMatrixRows = pgTable(
       .notNull()
       .references(() => interfaceMatrixRevisions.id, { onDelete: "cascade" }),
     interfaceId: text("interface_id").notNull(),
+    emplInternalRevision: integer("empl_internal_revision"),
     groupCode: text("group_code"),
+    groupName: text("group_name"),
     interfaceComponent: text("interface_component").notNull(),
     description: text("description"),
+    displayOrder: integer("display_order"),
+    parentRowId: uuid("parent_row_id"),
+    isActive: boolean("is_active").notNull().default(true),
     specOrgId: uuid("spec_org_id").references(() => organizations.id),
     desOrgId: uuid("des_org_id").references(() => organizations.id),
     supOrgId: uuid("sup_org_id").references(() => organizations.id),
@@ -756,10 +855,57 @@ export const interfaceMatrixRows = pgTable(
   (table) => [
     uniqueIndex("interface_matrix_rows_unique_id_idx").on(
       table.projectId,
+      table.revisionId,
       table.interfaceId
     ),
     index("interface_matrix_rows_revision_idx").on(table.revisionId),
   ]
+);
+
+export const interfaceMatrixAllocations = pgTable(
+  "interface_matrix_allocations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    rowId: uuid("row_id")
+      .notNull()
+      .references(() => interfaceMatrixRows.id, { onDelete: "cascade" }),
+    phaseColumn: matrixPhaseColumnEnum("phase_column").notNull(),
+    organizationId: uuid("organization_id").references(() => organizations.id),
+    isResponsible: boolean("is_responsible").notNull().default(false),
+    isNotRelevant: boolean("is_not_relevant").notNull().default(false),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("interface_matrix_allocations_row_idx").on(table.rowId, table.phaseColumn),
+    index("interface_matrix_allocations_project_idx").on(table.projectId, table.createdAt),
+  ]
+);
+
+export const interfaceMatrixPacks = pgTable(
+  "interface_matrix_packs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    revisionId: uuid("revision_id")
+      .notNull()
+      .references(() => interfaceMatrixRevisions.id, { onDelete: "cascade" }),
+    xlsxStoragePath: text("xlsx_storage_path").notNull(),
+    pdfStoragePath: text("pdf_storage_path").notNull(),
+    checksumSha256: text("checksum_sha256").notNull(),
+    generatedBy: uuid("generated_by").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("interface_matrix_packs_revision_idx").on(table.revisionId, table.generatedAt)]
 );
 
 export const interfaceMeetings = pgTable(
@@ -840,6 +986,171 @@ export const interfaceAuditExports = pgTable(
   (table) => [index("interface_audit_exports_project_idx").on(table.projectId, table.createdAt)]
 );
 
+export const interfaceTrackerItems = pgTable(
+  "interface_tracker_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    sectionTitle: text("section_title"),
+    status: trackerItemStatusEnum("status").notNull().default("open"),
+    openedOn: date("opened_on"),
+    actionText: text("action_text"),
+    actionOwnerText: text("action_owner_text"),
+    whoText: text("who_text"),
+    dueTextRaw: text("due_text_raw"),
+    dueDate: date("due_date"),
+    impactedText: text("impacted_text"),
+    commentsText: text("comments_text"),
+    sourceWorkbook: text("source_workbook"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdBy: uuid("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("interface_tracker_items_unique_idx").on(
+      table.projectId,
+      table.externalId,
+      table.sectionTitle
+    ),
+    index("interface_tracker_items_status_idx").on(table.projectId, table.status),
+  ]
+);
+
+export const interfaceTrackerEvents = pgTable(
+  "interface_tracker_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    trackerItemId: uuid("tracker_item_id")
+      .notNull()
+      .references(() => interfaceTrackerItems.id, { onDelete: "cascade" }),
+    eventDate: date("event_date"),
+    content: text("content").notNull(),
+    createdBy: uuid("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("interface_tracker_events_item_idx").on(table.trackerItemId, table.createdAt)]
+);
+
+export const interfaceTrackerCaseLinks = pgTable(
+  "interface_tracker_case_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    trackerItemId: uuid("tracker_item_id")
+      .notNull()
+      .references(() => interfaceTrackerItems.id, { onDelete: "cascade" }),
+    caseId: uuid("case_id")
+      .notNull()
+      .references(() => interfaceCases.id, { onDelete: "cascade" }),
+    linkedBy: uuid("linked_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("interface_tracker_case_links_unique_idx").on(table.trackerItemId, table.caseId),
+    index("interface_tracker_case_links_project_idx").on(table.projectId, table.createdAt),
+  ]
+);
+
+export const mocChanges = pgTable(
+  "moc_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    mocId: text("moc_id").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    decisionLogRef: text("decision_log_ref"),
+    thresholdFlag: boolean("threshold_flag").notNull().default(false),
+    affectsMultiplePackages: boolean("affects_multiple_packages").notNull().default(false),
+    costImpactEur: real("cost_impact_eur"),
+    hseqImpact: boolean("hseq_impact").notNull().default(false),
+    scheduleImpact: boolean("schedule_impact").notNull().default(false),
+    status: mocStatusEnum("status").notNull().default("draft"),
+    implementationStatus: mocImplementationStatusEnum("implementation_status")
+      .notNull()
+      .default("not_started"),
+    auditDueAt: timestamp("audit_due_at", { withTimezone: true }),
+    createdBy: uuid("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("moc_changes_project_moc_id_idx").on(table.projectId, table.mocId),
+    index("moc_changes_project_status_idx").on(table.projectId, table.status),
+  ]
+);
+
+export const mocApprovals = pgTable(
+  "moc_approvals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    mocChangeId: uuid("moc_change_id")
+      .notNull()
+      .references(() => mocChanges.id, { onDelete: "cascade" }),
+    approvalLevel: mocApprovalLevelEnum("approval_level").notNull(),
+    decision: mocApprovalDecisionEnum("decision").notNull().default("pending"),
+    approverMemberId: uuid("approver_member_id").references(() => projectMembers.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("moc_approvals_unique_level_idx").on(table.mocChangeId, table.approvalLevel),
+    index("moc_approvals_project_idx").on(table.projectId, table.createdAt),
+  ]
+);
+
+export const mocEntityLinks = pgTable(
+  "moc_entity_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    mocChangeId: uuid("moc_change_id")
+      .notNull()
+      .references(() => mocChanges.id, { onDelete: "cascade" }),
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    linkedBy: uuid("linked_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("moc_entity_links_unique_idx").on(table.mocChangeId, table.entityType, table.entityId),
+    index("moc_entity_links_project_idx").on(table.projectId, table.createdAt),
+  ]
+);
+
 // ─── Relations ───────────────────────────────────────────────────────────────
 
 export const portfoliosRelations = relations(portfolios, ({ many }) => ({
@@ -855,6 +1166,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   interfaceRegisters: many(interfaceRegisters),
   projectMembers: many(projectMembers),
   assetPlacements: many(assetPlacements),
+  modelRegistryAssets: many(modelRegistryAssets),
   attachments: many(attachments),
   deadlineDigestSends: many(deadlineDigestSends),
   organizations: many(organizations),
@@ -994,6 +1306,21 @@ export const assetPlacementsRelations = relations(
       fields: [assetPlacements.projectId],
       references: [projects.id],
     }),
+    modelRegistryAsset: one(modelRegistryAssets, {
+      fields: [assetPlacements.modelRegistryAssetId],
+      references: [modelRegistryAssets.id],
+    }),
+  })
+);
+
+export const modelRegistryAssetsRelations = relations(
+  modelRegistryAssets,
+  ({ one, many }) => ({
+    project: one(projects, {
+      fields: [modelRegistryAssets.projectId],
+      references: [projects.id],
+    }),
+    placements: many(assetPlacements),
   })
 );
 

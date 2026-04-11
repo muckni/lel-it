@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { db, assetPlacements } from "@owit/db";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { assertMember, requireRole } from "@/server/lib/rbac";
 import { projectIdForAssetPlacement } from "@/server/lib/project-id";
 
@@ -23,6 +23,9 @@ export const assetPlacementRouter = createTRPCRouter({
       await assertMember(ctx.user.id, input.projectId);
       return db.query.assetPlacements.findMany({
         where: eq(assetPlacements.projectId, input.projectId),
+        with: {
+          modelRegistryAsset: true,
+        },
         orderBy: (a, { asc }) => [asc(a.assetType), asc(a.label)],
       });
     }),
@@ -37,11 +40,20 @@ export const assetPlacementRouter = createTRPCRouter({
         positionY: z.number().default(0),
         positionZ: z.number().default(0),
         rotationY: z.number().default(0),
+        modelRegistryAssetId: z.string().uuid().optional(),
+        lodLevel: z.number().int().min(0).max(4).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
       await requireRole(ctx.user.id, input.projectId, "editor");
-      const [placement] = await db.insert(assetPlacements).values(input).returning();
+      const [placement] = await db
+        .insert(assetPlacements)
+        .values({
+          ...input,
+          modelRegistryAssetId: input.modelRegistryAssetId ?? null,
+          lodLevel: input.lodLevel ?? 0,
+        })
+        .returning();
       return placement;
     }),
 
@@ -54,6 +66,8 @@ export const assetPlacementRouter = createTRPCRouter({
         positionY: z.number().optional(),
         positionZ: z.number().optional(),
         rotationY: z.number().optional(),
+        modelRegistryAssetId: z.string().uuid().nullable().optional(),
+        lodLevel: z.number().int().min(0).max(4).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -66,6 +80,136 @@ export const assetPlacementRouter = createTRPCRouter({
         .where(eq(assetPlacements.id, id))
         .returning();
       return placement;
+    }),
+
+  setModelReference: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        modelRegistryAssetId: z.string().uuid().nullable(),
+        lodLevel: z.number().int().min(0).max(4).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const projectId = await projectIdForAssetPlacement(input.id);
+      await requireRole(ctx.user.id, projectId, "editor");
+      const [updated] = await db
+        .update(assetPlacements)
+        .set({
+          modelRegistryAssetId: input.modelRegistryAssetId,
+          lodLevel: input.lodLevel ?? 0,
+        })
+        .where(eq(assetPlacements.id, input.id))
+        .returning();
+      return updated;
+    }),
+
+  bulkUpsert: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        placements: z.array(
+          z.object({
+            id: z.string().uuid().optional(),
+            assetType: assetTypeEnum,
+            label: z.string().min(1).max(100),
+            positionX: z.number(),
+            positionY: z.number(),
+            positionZ: z.number(),
+            rotationY: z.number().optional().default(0),
+            modelRegistryAssetId: z.string().uuid().optional(),
+            lodLevel: z.number().int().min(0).max(4).optional(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireRole(ctx.user.id, input.projectId, "editor");
+
+      const updatedIds: string[] = [];
+      const createdIds: string[] = [];
+      for (const row of input.placements) {
+        if (row.id) {
+          // eslint-disable-next-line no-await-in-loop
+          const [updated] = await db
+            .update(assetPlacements)
+            .set({
+              assetType: row.assetType,
+              label: row.label,
+              positionX: row.positionX,
+              positionY: row.positionY,
+              positionZ: row.positionZ,
+              rotationY: row.rotationY ?? 0,
+              modelRegistryAssetId: row.modelRegistryAssetId ?? null,
+              lodLevel: row.lodLevel ?? 0,
+            })
+            .where(and(eq(assetPlacements.id, row.id), eq(assetPlacements.projectId, input.projectId)))
+            .returning({ id: assetPlacements.id });
+          if (updated) updatedIds.push(updated.id);
+          continue;
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        const [created] = await db
+          .insert(assetPlacements)
+          .values({
+            projectId: input.projectId,
+            assetType: row.assetType,
+            label: row.label,
+            positionX: row.positionX,
+            positionY: row.positionY,
+            positionZ: row.positionZ,
+            rotationY: row.rotationY ?? 0,
+            modelRegistryAssetId: row.modelRegistryAssetId ?? null,
+            lodLevel: row.lodLevel ?? 0,
+          })
+          .returning({ id: assetPlacements.id });
+        createdIds.push(created.id);
+      }
+
+      return { created: createdIds.length, updated: updatedIds.length };
+    }),
+
+  focusBounds: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        ids: z.array(z.string().uuid()).optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      await assertMember(ctx.user.id, input.projectId);
+
+      const where = input.ids && input.ids.length > 0
+        ? and(eq(assetPlacements.projectId, input.projectId), inArray(assetPlacements.id, input.ids))
+        : eq(assetPlacements.projectId, input.projectId);
+
+      const rows = await db.query.assetPlacements.findMany({
+        where,
+        columns: {
+          id: true,
+          positionX: true,
+          positionY: true,
+          positionZ: true,
+        },
+      });
+
+      if (rows.length === 0) {
+        return null;
+      }
+
+      const xs = rows.map((r) => r.positionX);
+      const ys = rows.map((r) => r.positionY);
+      const zs = rows.map((r) => r.positionZ);
+
+      return {
+        minX: Math.min(...xs),
+        maxX: Math.max(...xs),
+        minY: Math.min(...ys),
+        maxY: Math.max(...ys),
+        minZ: Math.min(...zs),
+        maxZ: Math.max(...zs),
+      };
     }),
 
   delete: protectedProcedure

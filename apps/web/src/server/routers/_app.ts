@@ -17,6 +17,10 @@ import { deadlineRouter } from "./deadline";
 import { interfaceCaseRouter } from "./interface-case";
 import { interfaceMatrixRouter } from "./interface-matrix";
 import { interfaceReportRouter } from "./interface-report";
+import { interfaceTrackerRouter } from "./interface-tracker";
+import { mocRouter } from "./moc";
+import { modelRegistryRouter } from "./model-registry";
+import { interfaceWorkspaceRouter } from "./interface-workspace";
 
 export const appRouter = createTRPCRouter({
   portfolio: portfolioRouter,
@@ -37,6 +41,10 @@ export const appRouter = createTRPCRouter({
   interfaceCase: interfaceCaseRouter,
   interfaceMatrix: interfaceMatrixRouter,
   interfaceReport: interfaceReportRouter,
+  interfaceTracker: interfaceTrackerRouter,
+  moc: mocRouter,
+  modelRegistry: modelRegistryRouter,
+  interfaceWorkspace: interfaceWorkspaceRouter,
 });
 
 export type AppRouter = typeof appRouter;

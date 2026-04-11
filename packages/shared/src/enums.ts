@@ -106,6 +106,43 @@ export const COMPLIANCE_STATUSES = [
 ] as const;
 export type ComplianceStatus = (typeof COMPLIANCE_STATUSES)[number];
 
+export const TRACKER_ITEM_STATUSES = [
+  "open",
+  "closed",
+  "info",
+  "hold",
+  "xclosed",
+] as const;
+export type TrackerItemStatus = (typeof TRACKER_ITEM_STATUSES)[number];
+
+export const MOC_STATUSES = [
+  "draft",
+  "under_review",
+  "approved",
+  "rejected",
+  "postponed",
+  "implemented",
+  "closed",
+] as const;
+export type MocStatus = (typeof MOC_STATUSES)[number];
+
+export const MOC_IMPLEMENTATION_STATUSES = [
+  "not_started",
+  "in_progress",
+  "implemented",
+  "audited",
+] as const;
+export type MocImplementationStatus = (typeof MOC_IMPLEMENTATION_STATUSES)[number];
+
+export const MOC_APPROVAL_LEVELS = [
+  "engineering_manager",
+  "epc_director",
+  "project_director",
+  "steerco_excom",
+  "additional",
+] as const;
+export type MocApprovalLevel = (typeof MOC_APPROVAL_LEVELS)[number];
+
 // Disciplines for interface agreements
 export const DISCIPLINES = [
   "structural",

@@ -36,6 +36,20 @@
       "when": 1775919274690,
       "tag": "0004_perfect_scrambler",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775928000000,
+      "tag": "0005_phase9a_matrix_tracker_moc",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775931000000,
+      "tag": "0006_phase9b_interfaces_3d_registry",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ import {
   DEFAULT_SLA_POLICY,
   computeDefaultSlaDueAt,
   isValidLifecycleTransition,
+  resolveRequiredMocApprovalLevels,
 } from "@owit/shared";
 
 describe("interface compliance lifecycle transitions", () => {
@@ -31,5 +32,37 @@ describe("interface compliance sla defaults", () => {
     const created = new Date("2026-01-01T10:00:00.000Z");
     const due = computeDefaultSlaDueAt(created, DEFAULT_SLA_POLICY);
     expect(due.getDate() - created.getDate()).toBe(14);
+  });
+});
+
+describe("moc approval routing rules", () => {
+  it("routes sub-250k changes to engineering manager + epc director", () => {
+    expect(
+      resolveRequiredMocApprovalLevels({
+        costImpactEur: 100000,
+        scheduleImpact: false,
+        hseqImpact: false,
+      })
+    ).toEqual(["engineering_manager", "epc_director"]);
+  });
+
+  it("routes >=250k changes through project director", () => {
+    expect(
+      resolveRequiredMocApprovalLevels({
+        costImpactEur: 300000,
+        scheduleImpact: false,
+        hseqImpact: false,
+      })
+    ).toEqual(["engineering_manager", "project_director"]);
+  });
+
+  it("routes >=1m changes through steerco/excom", () => {
+    expect(
+      resolveRequiredMocApprovalLevels({
+        costImpactEur: 1500000,
+        scheduleImpact: false,
+        hseqImpact: false,
+      })
+    ).toEqual(["engineering_manager", "project_director", "steerco_excom"]);
   });
 });

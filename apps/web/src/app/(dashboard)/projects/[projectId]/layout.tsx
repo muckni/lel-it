@@ -14,9 +14,11 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notification-bell";
+import { featureFlags } from "@/lib/feature-flags";
 
-const tabs = [
+const baseTabs = [
   { name: "Overview", href: "" },
+  { name: "Interfaces", href: "/interfaces" },
   { name: "Registers", href: "/registers" },
   { name: "Queries", href: "/queries" },
   { name: "Calendar", href: "/calendar" },
@@ -35,6 +37,10 @@ export default function ProjectLayout({
   const pathname = usePathname();
   const projectId = params.projectId as string;
   const basePath = `/projects/${projectId}`;
+  const tabs = baseTabs.filter((tab) => {
+    if (tab.name === "Interfaces" && !featureFlags.interfaceWorkspaceV2) return false;
+    return true;
+  });
 
   return (
     <>
