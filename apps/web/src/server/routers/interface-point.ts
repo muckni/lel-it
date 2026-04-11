@@ -193,4 +193,62 @@ export const interfacePointRouter = createTRPCRouter({
         .where(eq(interfacePoints.id, input.id));
       return { success: true };
     }),
+
+  // Bulk import from Excel — rows must include title and optional fields
+  bulkCreate: protectedProcedure
+    .input(
+      z.object({
+        agreementId: z.string().uuid(),
+        rows: z.array(
+          z.object({
+            title: z.string().min(1).max(255),
+            description: z.string().optional(),
+            criticality: z.enum(["critical", "major", "minor"]).optional(),
+            phase: z
+              .enum([
+                "maturation",
+                "feed",
+                "detailed_design",
+                "procurement",
+                "fabrication",
+                "installation",
+                "commissioning",
+                "operations",
+              ])
+              .optional(),
+            dueDate: z.string().optional(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const agreement = await db.query.interfaceAgreements.findFirst({
+        where: eq(interfaceAgreements.id, input.agreementId),
+      });
+      if (!agreement) throw new Error("Agreement not found");
+
+      // Get current count for sequential codes
+      const existing = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(interfacePoints)
+        .where(eq(interfacePoints.agreementId, input.agreementId));
+      let nextNum = Number(existing[0].count) + 1;
+
+      const values = input.rows.map((row) => {
+        const code = `${agreement.code.replace("IA", "IP")}-${String(nextNum).padStart(3, "0")}`;
+        nextNum++;
+        return {
+          agreementId: input.agreementId,
+          code,
+          title: row.title,
+          description: row.description ?? null,
+          criticality: (row.criticality ?? "minor") as "critical" | "major" | "minor",
+          phase: row.phase ?? null,
+          dueDate: row.dueDate ?? null,
+        };
+      });
+
+      await db.insert(interfacePoints).values(values);
+      return { created: values.length };
+    }),
 });

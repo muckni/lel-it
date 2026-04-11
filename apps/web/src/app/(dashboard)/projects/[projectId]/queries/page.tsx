@@ -39,7 +39,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { PlusIcon, ArrowUpDownIcon } from "lucide-react";
+import { PlusIcon, ArrowUpDownIcon, DownloadIcon } from "lucide-react";
+import { exportInterfaceQueries } from "@/lib/excel";
 import { QUERY_STATUSES, QUERY_PRIORITIES } from "@owit/shared";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
@@ -283,10 +284,19 @@ export default function QueriesPage() {
             {iqs.length} quer{iqs.length !== 1 ? "ies" : "y"}
           </p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <PlusIcon className="h-4 w-4 mr-1" />
-          Raise IQ
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => exportInterfaceQueries(iqs as any[], projectId)}
+            disabled={iqs.length === 0}
+          >
+            <DownloadIcon className="h-4 w-4 mr-1" /> Export
+          </Button>
+          <Button onClick={() => setOpen(true)}>
+            <PlusIcon className="h-4 w-4 mr-1" />
+            Raise IQ
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

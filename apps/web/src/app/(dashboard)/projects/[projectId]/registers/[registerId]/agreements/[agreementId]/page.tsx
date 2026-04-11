@@ -50,9 +50,11 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { InterfacePointForm, type InterfacePointFormValues } from "@/components/forms/interface-point-form";
 import { PointStatusBadge, CriticalityBadge } from "@/components/status-badge";
-import { PlusIcon, ArrowUpDownIcon } from "lucide-react";
+import { ImportPointsDialog } from "@/components/import-points-dialog";
+import { PlusIcon, ArrowUpDownIcon, DownloadIcon, UploadIcon } from "lucide-react";
 import { CRITICALITIES, POINT_STATUSES } from "@owit/shared";
 import { format } from "date-fns";
+import { exportInterfacePoints } from "@/lib/excel";
 
 type Point = {
   id: string;
@@ -76,6 +78,7 @@ export default function AgreementDetailPage() {
   const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -263,15 +266,20 @@ export default function AgreementDetailPage() {
               {agreement.discipline && ` · ${agreement.discipline.replace(/_/g, " ")}`}
             </p>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger render={<Button><PlusIcon className="h-4 w-4 mr-1" />New Interface Point</Button>} />
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>New Interface Point</DialogTitle>
-              </DialogHeader>
-              <InterfacePointForm onSubmit={handleCreate} isLoading={createMutation.isPending} />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <UploadIcon className="h-4 w-4 mr-1" /> Import
+            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger render={<Button><PlusIcon className="h-4 w-4 mr-1" />New Interface Point</Button>} />
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>New Interface Point</DialogTitle>
+                </DialogHeader>
+                <InterfacePointForm onSubmit={handleCreate} isLoading={createMutation.isPending} />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Filters */}
@@ -307,6 +315,15 @@ export default function AgreementDetailPage() {
           <span className="text-xs text-muted-foreground ml-auto">
             {filteredPoints.length} point{filteredPoints.length !== 1 ? "s" : ""}
           </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => exportInterfacePoints(filteredPoints as any[], agreement.code)}
+            disabled={filteredPoints.length === 0}
+          >
+            <DownloadIcon className="h-3.5 w-3.5 mr-1" /> Export
+          </Button>
         </div>
 
         {/* Table */}
@@ -345,6 +362,13 @@ export default function AgreementDetailPage() {
           </Table>
         </div>
       </div>
+
+      <ImportPointsDialog
+        agreementId={agreementId}
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onSuccess={() => queryClient.invalidateQueries(trpc.interfacePoint.list.queryOptions({ agreementId }))}
+      />
     </>
   );
 }
