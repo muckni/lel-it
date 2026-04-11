@@ -25,6 +25,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const PHASE_VALUES = [
+  "maturation", "feed", "detailed_design", "procurement",
+  "fabrication", "installation", "commissioning", "operations",
+] as const;
+
 const PHASE_OPTIONS = [
   { value: "maturation", label: "Maturation" },
   { value: "feed", label: "FEED" },
@@ -39,7 +44,7 @@ const PHASE_OPTIONS = [
 const schema = z.object({
   name: z.string().min(1, "Project name is required").max(255),
   description: z.string().optional(),
-  phase: z.enum(PHASE_OPTIONS.map((option) => option.value) as [string, ...string[]]).optional(),
+  phase: z.enum(PHASE_VALUES).optional(),
 });
 
 type CreateProjectFormValues = z.infer<typeof schema>;
@@ -91,10 +96,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
         portfolioId,
         name: values.name.trim(),
         description: values.description?.trim() || undefined,
-        phase: (values.phase || undefined) as
-          | "maturation" | "feed" | "detailed_design" | "procurement"
-          | "fabrication" | "installation" | "commissioning" | "operations"
-          | undefined,
+        phase: values.phase ?? undefined,
       });
 
       await queryClient.invalidateQueries(trpc.portfolio.list.queryOptions());

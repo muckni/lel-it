@@ -28,6 +28,8 @@ export const portfolioRouter = createTRPCRouter({
         portfolioId: z.string().uuid(),
         name: z.string().min(1).max(255),
         description: z.string().optional(),
+        // phase is optional here; the DB column has notNull + default("maturation")
+        // so omitting it lets the DB default apply rather than forcing a value
         phase: z.enum([
           "maturation", "feed", "detailed_design", "procurement",
           "fabrication", "installation", "commissioning", "operations",
