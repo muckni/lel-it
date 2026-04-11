@@ -11,6 +11,7 @@ import { notificationRouter } from "./notification";
 import { assetPlacementRouter } from "./asset-placement";
 import { reportRouter } from "./report";
 import { activityRouter } from "./activity";
+import { projectRouter } from "./project";
 
 export const appRouter = createTRPCRouter({
   portfolio: portfolioRouter,
@@ -25,6 +26,7 @@ export const appRouter = createTRPCRouter({
   assetPlacement: assetPlacementRouter,
   report: reportRouter,
   activity: activityRouter,
+  project: projectRouter,
 });
 
 export type AppRouter = typeof appRouter;

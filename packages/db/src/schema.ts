@@ -11,6 +11,7 @@ import {
   pgEnum,
   index,
   uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -440,6 +441,19 @@ export const projectMembers = pgTable(
   ]
 );
 
+export const memberWorkPackages = pgTable(
+  "member_work_packages",
+  {
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => projectMembers.id, { onDelete: "cascade" }),
+    workPackageId: uuid("work_package_id")
+      .notNull()
+      .references(() => workPackages.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.memberId, table.workPackageId] })]
+);
+
 export const assetPlacements = pgTable(
   "asset_placements",
   {
@@ -575,13 +589,28 @@ export const iqResponsesRelations = relations(iqResponses, ({ one }) => ({
 
 export const projectMembersRelations = relations(
   projectMembers,
-  ({ one }) => ({
+  ({ one, many }) => ({
     project: one(projects, {
       fields: [projectMembers.projectId],
       references: [projects.id],
     }),
     workPackage: one(workPackages, {
       fields: [projectMembers.workPackageId],
+      references: [workPackages.id],
+    }),
+    memberWorkPackages: many(memberWorkPackages),
+  })
+);
+
+export const memberWorkPackagesRelations = relations(
+  memberWorkPackages,
+  ({ one }) => ({
+    member: one(projectMembers, {
+      fields: [memberWorkPackages.memberId],
+      references: [projectMembers.id],
+    }),
+    workPackage: one(workPackages, {
+      fields: [memberWorkPackages.workPackageId],
       references: [workPackages.id],
     }),
   })

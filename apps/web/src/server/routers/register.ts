@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { db, interfaceRegisters, workPackages } from "@owit/db";
 import { eq, sql, and } from "drizzle-orm";
+import { requireRole } from "@/server/lib/rbac";
 
 export const registerRouter = createTRPCRouter({
   list: protectedProcedure
@@ -46,7 +47,8 @@ export const registerRouter = createTRPCRouter({
         packageBId: z.string().uuid(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      await requireRole(ctx.user.id, input.projectId, "editor");
       // Auto-generate code: IR-001, IR-002, etc.
       const existing = await db
         .select({ count: sql<number>`count(*)` })
@@ -82,7 +84,12 @@ export const registerRouter = createTRPCRouter({
 
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      const reg = await db.query.interfaceRegisters.findFirst({
+        where: eq(interfaceRegisters.id, input.id),
+        columns: { projectId: true },
+      });
+      if (reg) await requireRole(ctx.user.id, reg.projectId, "editor");
       await db
         .delete(interfaceRegisters)
         .where(eq(interfaceRegisters.id, input.id));

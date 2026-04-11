@@ -3,6 +3,7 @@ import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { db, workPackages } from "@owit/db";
 import { eq, and } from "drizzle-orm";
 import { DEFAULT_WORK_PACKAGES } from "@owit/shared";
+import { requireRole } from "@/server/lib/rbac";
 
 export const workPackageRouter = createTRPCRouter({
   list: protectedProcedure
@@ -25,7 +26,8 @@ export const workPackageRouter = createTRPCRouter({
         color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      await requireRole(ctx.user.id, input.projectId, "editor");
       const [wp] = await db.insert(workPackages).values(input).returning();
       return wp;
     }),
@@ -60,7 +62,8 @@ export const workPackageRouter = createTRPCRouter({
 
   seedDefaults: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      await requireRole(ctx.user.id, input.projectId, "editor");
       const values = DEFAULT_WORK_PACKAGES.map((wp) => ({
         projectId: input.projectId,
         code: wp.code,
