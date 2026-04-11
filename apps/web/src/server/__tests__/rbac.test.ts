@@ -8,9 +8,11 @@ vi.mock("@owit/db", () => ({
   db: {
     query: {
       projectMembers: { findFirst: (...args: unknown[]) => mockFindFirst(...args) },
+      projects: { findFirst: vi.fn().mockResolvedValue(null) },
     },
   },
   projectMembers: { userId: "user_id", projectId: "project_id" },
+  projects: { id: "id" },
 }));
 
 // ── Import after mock ────────────────────────────────────────────────────────

@@ -14,6 +14,9 @@ import { activityRouter } from "./activity";
 import { projectRouter } from "./project";
 import { attachmentRouter } from "./attachment";
 import { deadlineRouter } from "./deadline";
+import { interfaceCaseRouter } from "./interface-case";
+import { interfaceMatrixRouter } from "./interface-matrix";
+import { interfaceReportRouter } from "./interface-report";
 
 export const appRouter = createTRPCRouter({
   portfolio: portfolioRouter,
@@ -31,6 +34,9 @@ export const appRouter = createTRPCRouter({
   project: projectRouter,
   attachment: attachmentRouter,
   deadline: deadlineRouter,
+  interfaceCase: interfaceCaseRouter,
+  interfaceMatrix: interfaceMatrixRouter,
+  interfaceReport: interfaceReportRouter,
 });
 
 export type AppRouter = typeof appRouter;

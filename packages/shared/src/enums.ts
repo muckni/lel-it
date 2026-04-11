@@ -77,6 +77,35 @@ export type IqResponseStatus = (typeof IQ_RESPONSE_STATUSES)[number];
 export const MEMBER_ROLES = ["admin", "editor", "viewer"] as const;
 export type MemberRole = (typeof MEMBER_ROLES)[number];
 
+// Interface compliance workflow roles
+export const INTERFACE_PARTY_ROLES = [
+  "employer_interface_manager",
+  "contractor_interface_manager",
+  "interface_coordinator",
+  "requesting_party",
+  "providing_party",
+] as const;
+export type InterfacePartyRole = (typeof INTERFACE_PARTY_ROLES)[number];
+
+export const INTERFACE_CASE_STATES = [
+  "draft_dir",
+  "employer_validated",
+  "forwarded",
+  "answered",
+  "reviewed",
+  "accepted",
+  "closed",
+  "reopened",
+] as const;
+export type InterfaceLifecycleState = (typeof INTERFACE_CASE_STATES)[number];
+
+export const COMPLIANCE_STATUSES = [
+  "compliant",
+  "attention",
+  "breach",
+] as const;
+export type ComplianceStatus = (typeof COMPLIANCE_STATUSES)[number];
+
 // Disciplines for interface agreements
 export const DISCIPLINES = [
   "structural",
