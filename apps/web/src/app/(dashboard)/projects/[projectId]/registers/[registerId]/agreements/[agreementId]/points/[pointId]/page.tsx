@@ -35,8 +35,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PointStatusBadge, CriticalityBadge } from "@/components/status-badge";
-import { PlusIcon, Trash2Icon, ExternalLinkIcon, CheckCircle2Icon, ClockIcon } from "lucide-react";
-import { DELIVERABLE_STATUSES, POINT_STATUSES } from "@owit/shared";
+import { PlusIcon, Trash2Icon, ExternalLinkIcon, CheckCircle2Icon, ClockIcon, MessageSquareIcon, ArrowRightIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { DELIVERABLE_STATUSES, POINT_STATUSES, QUERY_PRIORITIES } from "@owit/shared";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -60,8 +61,34 @@ const deliverableStatusColors: Record<string, string> = {
   rejected: "bg-red-100 text-red-800",
 };
 
+const iqPriorityColors: Record<string, string> = {
+  urgent: "bg-red-100 text-red-800",
+  high: "bg-orange-100 text-orange-800",
+  medium: "bg-blue-100 text-blue-800",
+  low: "bg-gray-100 text-gray-600",
+};
+
+const iqStatusColors: Record<string, string> = {
+  open: "bg-amber-100 text-amber-800",
+  responded: "bg-blue-100 text-blue-800",
+  accepted: "bg-green-100 text-green-800",
+  rejected: "bg-red-100 text-red-800",
+  closed: "bg-gray-100 text-gray-600",
+};
+
+const iqSchema = z.object({
+  raisedByPackageId: z.string().uuid("Select package"),
+  assignedToPackageId: z.string().uuid("Select package"),
+  subject: z.string().min(1).max(255),
+  description: z.string().optional(),
+  priority: z.enum(["urgent", "high", "medium", "low"]),
+  dueDate: z.string().optional(),
+});
+type IQFormValues = z.infer<typeof iqSchema>;
+
 export default function PointDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.projectId as string;
   const registerId = params.registerId as string;
   const agreementId = params.agreementId as string;
@@ -69,6 +96,7 @@ export default function PointDetailPage() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [delOpen, setDelOpen] = useState(false);
+  const [iqOpen, setIqOpen] = useState(false);
 
   const { data: point, isLoading } = useQuery(
     trpc.interfacePoint.getById.queryOptions({ id: pointId })
@@ -105,7 +133,22 @@ export default function PointDetailPage() {
     })
   );
 
+  const { data: iqs = [] } = useQuery(
+    trpc.interfaceQuery.listByPoint.queryOptions({ interfacePointId: pointId })
+  );
+
+  const createIQ = useMutation(
+    trpc.interfaceQuery.create.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.interfaceQuery.listByPoint.queryOptions({ interfacePointId: pointId }));
+        setIqOpen(false);
+        iqForm.reset();
+      },
+    })
+  );
+
   const form = useForm<DeliverableFormValues>({ resolver: zodResolver(deliverableSchema) });
+  const iqForm = useForm<IQFormValues>({ resolver: zodResolver(iqSchema), defaultValues: { priority: "medium" } });
 
   function handleCreateDeliverable(values: DeliverableFormValues) {
     createDeliverable.mutate({
@@ -115,6 +158,15 @@ export default function PointDetailPage() {
       responsiblePackageId: values.responsiblePackageId || undefined,
     });
     form.reset();
+  }
+
+  function handleCreateIQ(values: IQFormValues) {
+    createIQ.mutate({
+      interfacePointId: pointId,
+      ...values,
+      dueDate: values.dueDate || undefined,
+      description: values.description || undefined,
+    });
   }
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
@@ -352,6 +404,128 @@ export default function PointDetailPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Interface Queries */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageSquareIcon className="h-4 w-4" />
+                Interface Queries
+                {iqs.length > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({iqs.filter((q: any) => q.status === "open" || q.status === "responded").length} open)
+                  </span>
+                )}
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setIqOpen(true)}>
+                <PlusIcon className="h-3.5 w-3.5 mr-1" /> Raise IQ
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {iqs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No interface queries raised on this point.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {iqs.map((q: any) => (
+                  <div
+                    key={q.id}
+                    className="flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => router.push(`/projects/${projectId}/queries/${q.id}`)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{q.subject}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium capitalize ${iqPriorityColors[q.priority]}`}>
+                          {q.priority}
+                        </span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full" style={{ background: q.raisedByPackage.color }} />
+                          {q.raisedByPackage.code}
+                          <ArrowRightIcon className="h-3 w-3 mx-0.5" />
+                          <span className="h-2 w-2 rounded-full" style={{ background: q.assignedToPackage.color }} />
+                          {q.assignedToPackage.code}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${iqStatusColors[q.status]}`}>
+                      {q.status.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Raise IQ Dialog */}
+        <Dialog open={iqOpen} onOpenChange={setIqOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Raise Interface Query</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={iqForm.handleSubmit(handleCreateIQ)} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Subject *</Label>
+                <Input placeholder="Clarification on bolt pattern spec" {...iqForm.register("subject")} />
+                {iqForm.formState.errors.subject && (
+                  <p className="text-xs text-destructive">{iqForm.formState.errors.subject.message}</p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Raised By *</Label>
+                  <Select onValueChange={(v) => iqForm.setValue("raisedByPackageId", v as string)}>
+                    <SelectTrigger className="text-xs"><SelectValue placeholder="Package…" /></SelectTrigger>
+                    <SelectContent>
+                      {workPackages.map((wp) => (
+                        <SelectItem key={wp.id} value={wp.id} className="text-xs">{wp.code} – {wp.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Assigned To *</Label>
+                  <Select onValueChange={(v) => iqForm.setValue("assignedToPackageId", v as string)}>
+                    <SelectTrigger className="text-xs"><SelectValue placeholder="Package…" /></SelectTrigger>
+                    <SelectContent>
+                      {workPackages.map((wp) => (
+                        <SelectItem key={wp.id} value={wp.id} className="text-xs">{wp.code} – {wp.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <Select defaultValue="medium" onValueChange={(v) => iqForm.setValue("priority", (v ?? "medium") as typeof QUERY_PRIORITIES[number])}>
+                    <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {QUERY_PRIORITIES.map((p) => (
+                        <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Due Date</Label>
+                  <Input type="date" {...iqForm.register("dueDate")} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea rows={2} {...iqForm.register("description")} />
+              </div>
+              <Button type="submit" disabled={createIQ.isPending}>
+                {createIQ.isPending ? "Raising…" : "Raise IQ"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );
