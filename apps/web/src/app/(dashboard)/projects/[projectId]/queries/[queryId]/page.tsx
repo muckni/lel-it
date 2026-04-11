@@ -25,7 +25,6 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import {
   CheckCircle2Icon,
   XCircleIcon,
@@ -38,6 +37,8 @@ import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useProjectRole } from "@/hooks/use-project-role";
+import { EntityAttachments } from "@/components/attachments/entity-attachments";
 
 const priorityColors: Record<string, string> = {
   urgent: "bg-red-100 text-red-800",
@@ -56,11 +57,6 @@ const statusColors: Record<string, string> = {
 
 const responseSchema = z.object({
   content: z.string().min(1),
-  documentRef: z
-    .string()
-    .url("Must be a valid URL")
-    .optional()
-    .or(z.literal("")),
 });
 type ResponseFormValues = z.infer<typeof responseSchema>;
 
@@ -74,6 +70,7 @@ export default function QueryDetailPage() {
   const queryId = params.queryId as string;
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { canEdit } = useProjectRole(projectId);
 
   const { data: iq, isLoading } = useQuery(
     trpc.interfaceQuery.getById.queryOptions({ id: queryId })
@@ -152,7 +149,6 @@ export default function QueryDetailPage() {
     respond.mutate({
       queryId,
       content: values.content,
-      documentRef: values.documentRef || undefined,
     });
   }
 
@@ -309,73 +305,83 @@ export default function QueryDetailPage() {
 
             {iq.responses.map((r: any) => (
               <div key={r.id} className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-sm">{r.content}</p>
-                    {r.documentRef && (
-                      <a
-                        href={r.documentRef}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline mt-1 block"
-                      >
-                        View Document →
-                      </a>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm">{r.content}</p>
+                      {r.documentRef && (
+                        <a
+                          href={r.documentRef}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline mt-1 block"
+                        >
+                          View Document →
+                        </a>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(r.createdAt), "dd MMM yyyy HH:mm")}
+                      </p>
+                    </div>
+                    {r.status === "submitted" && (
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded ml-2">
+                        Pending review
+                      </span>
                     )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {format(new Date(r.createdAt), "dd MMM yyyy HH:mm")}
-                    </p>
+                    {r.status === "accepted" && (
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded ml-2 flex items-center gap-1">
+                        <CheckCircle2Icon className="h-3 w-3" /> Accepted
+                      </span>
+                    )}
+                    {r.status === "rejected" && (
+                      <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded ml-2 flex items-center gap-1">
+                        <XCircleIcon className="h-3 w-3" /> Rejected
+                      </span>
+                    )}
                   </div>
-                  {r.status === "submitted" && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded ml-2">
-                      Pending review
-                    </span>
-                  )}
-                  {r.status === "accepted" && (
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded ml-2 flex items-center gap-1">
-                      <CheckCircle2Icon className="h-3 w-3" /> Accepted
-                    </span>
-                  )}
-                  {r.status === "rejected" && (
-                    <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded ml-2 flex items-center gap-1">
-                      <XCircleIcon className="h-3 w-3" /> Rejected
-                    </span>
+                  <div className="pt-1">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">
+                      Attachments
+                    </p>
+                    <EntityAttachments
+                      entityType="iq_response"
+                      entityId={r.id}
+                      canManage={canEdit}
+                    />
+                  </div>
+                  {canResolve && r.status === "submitted" && (
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-green-600 hover:bg-green-700"
+                        onClick={() =>
+                          resolveResponse.mutate({
+                            responseId: r.id,
+                            queryId,
+                            resolution: "accepted",
+                          })
+                        }
+                        disabled={resolveResponse.isPending}
+                      >
+                        <CheckCircle2Icon className="h-3 w-3 mr-1" /> Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-7 text-xs"
+                        onClick={() =>
+                          resolveResponse.mutate({
+                            responseId: r.id,
+                            queryId,
+                            resolution: "rejected",
+                          })
+                        }
+                        disabled={resolveResponse.isPending}
+                      >
+                        <XCircleIcon className="h-3 w-3 mr-1" /> Reject
+                      </Button>
+                    </div>
                   )}
                 </div>
-                {canResolve && r.status === "submitted" && (
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      className="h-7 text-xs bg-green-600 hover:bg-green-700"
-                      onClick={() =>
-                        resolveResponse.mutate({
-                          responseId: r.id,
-                          queryId,
-                          resolution: "accepted",
-                        })
-                      }
-                      disabled={resolveResponse.isPending}
-                    >
-                      <CheckCircle2Icon className="h-3 w-3 mr-1" /> Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="h-7 text-xs"
-                      onClick={() =>
-                        resolveResponse.mutate({
-                          responseId: r.id,
-                          queryId,
-                          resolution: "rejected",
-                        })
-                      }
-                      disabled={resolveResponse.isPending}
-                    >
-                      <XCircleIcon className="h-3 w-3 mr-1" /> Reject
-                    </Button>
-                  </div>
-                )}
-              </div>
             ))}
 
             {canRespond && (
@@ -394,15 +400,6 @@ export default function QueryDetailPage() {
                 {responseForm.formState.errors.content && (
                   <p className="text-xs text-destructive">
                     {responseForm.formState.errors.content.message}
-                  </p>
-                )}
-                <Input
-                  placeholder="Document link (optional)"
-                  {...responseForm.register("documentRef")}
-                />
-                {responseForm.formState.errors.documentRef && (
-                  <p className="text-xs text-destructive">
-                    {responseForm.formState.errors.documentRef.message}
                   </p>
                 )}
                 <Button

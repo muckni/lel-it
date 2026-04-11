@@ -13,6 +13,7 @@ import {
   UsersIcon,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { DeadlineSummaryCard } from "@/components/deadlines/deadline-summary-card";
 
 const PHASE_LABELS: Record<string, string> = {
   maturation: "Maturation",
@@ -129,6 +130,8 @@ export default function ProjectOverviewPage() {
           </CardContent>
         </Card>
       </div>
+
+      <DeadlineSummaryCard projectId={projectId} />
 
       {/* Work Packages + Activity */}
       <div className="grid gap-4 md:grid-cols-2">

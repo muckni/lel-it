@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
-import { db, portfolios, projects } from "@owit/db";
+import { db, portfolios, projectMembers, projects } from "@owit/db";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
@@ -40,14 +40,27 @@ export const portfolioRouter = createTRPCRouter({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
-      const [project] = await db
-        .insert(projects)
-        .values({
-          portfolioId: input.portfolioId,
-          name: input.name,
-          description: input.description,
-        })
-        .returning();
-      return project;
+      return db.transaction(async (tx) => {
+        const [project] = await tx
+          .insert(projects)
+          .values({
+            portfolioId: input.portfolioId,
+            name: input.name,
+            description: input.description,
+          })
+          .returning();
+
+        // Ensure project creator has immediate admin permissions.
+        await tx
+          .insert(projectMembers)
+          .values({
+            projectId: project.id,
+            userId: ctx.user.id,
+            role: "admin",
+          })
+          .onConflictDoNothing();
+
+        return project;
+      });
     }),
 });

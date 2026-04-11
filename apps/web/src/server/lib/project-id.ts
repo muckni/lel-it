@@ -10,6 +10,7 @@ import {
   interfacePoints,
   interfaceQueries,
   deliverables,
+  iqResponses,
   workPackages,
   assetPlacements,
   comments,
@@ -62,6 +63,15 @@ export async function projectIdForDeliverable(id: string): Promise<string> {
   });
   if (!row) notFound("Deliverable");
   return projectIdForPoint(row.interfacePointId);
+}
+
+export async function projectIdForIqResponse(id: string): Promise<string> {
+  const row = await db.query.iqResponses.findFirst({
+    where: eq(iqResponses.id, id),
+    columns: { queryId: true },
+  });
+  if (!row) notFound("IQ response");
+  return projectIdForQuery(row.queryId);
 }
 
 export async function projectIdForWorkPackage(id: string): Promise<string> {

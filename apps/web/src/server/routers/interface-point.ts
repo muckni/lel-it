@@ -21,6 +21,19 @@ const phaseEnum = z.enum([
   "operations",
 ]);
 
+function normalizeDateForCreate(value: string | undefined): string | null {
+  if (!value) return null;
+  return value;
+}
+
+function normalizeDateForUpdate(
+  value: string | undefined
+): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (!value) return null;
+  return value;
+}
+
 export const interfacePointRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ agreementId: z.string().uuid() }))
@@ -121,7 +134,12 @@ export const interfacePointRouter = createTRPCRouter({
 
       const [point] = await db
         .insert(interfacePoints)
-        .values({ ...input, code })
+        .values({
+          ...input,
+          code,
+          dueDate: normalizeDateForCreate(input.dueDate),
+          description: input.description || null,
+        })
         .returning();
       return point;
     }),
@@ -142,9 +160,16 @@ export const interfacePointRouter = createTRPCRouter({
       const { id, ...data } = input;
       const projectId = await projectIdForPoint(id);
       await requireRole(ctx.user.id, projectId, "editor");
+      const dueDate = normalizeDateForUpdate(data.dueDate);
       const [point] = await db
         .update(interfacePoints)
-        .set({ ...data, updatedAt: new Date() })
+        .set({
+          ...data,
+          dueDate,
+          description:
+            data.description === undefined ? undefined : data.description || null,
+          updatedAt: new Date(),
+        })
         .where(eq(interfacePoints.id, id))
         .returning();
       return point;
@@ -199,7 +224,7 @@ export const interfacePointRouter = createTRPCRouter({
           description: row.description ?? null,
           criticality: (row.criticality ?? "minor") as "critical" | "major" | "minor",
           phase: row.phase ?? null,
-          dueDate: row.dueDate ?? null,
+          dueDate: normalizeDateForCreate(row.dueDate),
         };
       });
 

@@ -88,6 +88,12 @@ export const iqResponseStatusEnum = pgEnum("iq_response_status", [
   "rejected",
 ]);
 
+export const attachmentEntityEnum = pgEnum("attachment_entity", [
+  "interface_point",
+  "deliverable",
+  "iq_response",
+]);
+
 export const memberRoleEnum = pgEnum("member_role", [
   "admin",
   "editor",
@@ -480,6 +486,59 @@ export const assetPlacements = pgTable(
   ]
 );
 
+export const attachments = pgTable(
+  "attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    entityType: attachmentEntityEnum("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    fileName: text("file_name").notNull(),
+    storagePath: text("storage_path").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    uploadedByUserId: uuid("uploaded_by_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("attachments_storage_path_idx").on(table.storagePath),
+    index("attachments_project_id_idx").on(table.projectId, table.createdAt),
+    index("attachments_entity_idx").on(
+      table.entityType,
+      table.entityId,
+      table.createdAt
+    ),
+  ]
+);
+
+export const deadlineDigestSends = pgTable(
+  "deadline_digest_sends",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    digestDate: date("digest_date").notNull(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    contentHash: text("content_hash").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("deadline_digest_unique_idx").on(
+      table.digestDate,
+      table.projectId,
+      table.userId
+    ),
+    index("deadline_digest_date_idx").on(table.digestDate, table.projectId),
+  ]
+);
+
 // ─── Relations ───────────────────────────────────────────────────────────────
 
 export const portfoliosRelations = relations(portfolios, ({ many }) => ({
@@ -495,6 +554,8 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   interfaceRegisters: many(interfaceRegisters),
   projectMembers: many(projectMembers),
   assetPlacements: many(assetPlacements),
+  attachments: many(attachments),
+  deadlineDigestSends: many(deadlineDigestSends),
 }));
 
 export const workPackagesRelations = relations(workPackages, ({ one }) => ({
@@ -621,6 +682,23 @@ export const assetPlacementsRelations = relations(
   ({ one }) => ({
     project: one(projects, {
       fields: [assetPlacements.projectId],
+      references: [projects.id],
+    }),
+  })
+);
+
+export const attachmentsRelations = relations(attachments, ({ one }) => ({
+  project: one(projects, {
+    fields: [attachments.projectId],
+    references: [projects.id],
+  }),
+}));
+
+export const deadlineDigestSendsRelations = relations(
+  deadlineDigestSends,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [deadlineDigestSends.projectId],
       references: [projects.id],
     }),
   })

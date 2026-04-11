@@ -55,6 +55,7 @@ import { PlusIcon, ArrowUpDownIcon, DownloadIcon, UploadIcon } from "lucide-reac
 import { CRITICALITIES, POINT_STATUSES } from "@owit/shared";
 import { format } from "date-fns";
 import { exportInterfacePoints } from "@/lib/excel";
+import { DeadlineBadge, getDeadlineRowClassName } from "@/components/deadlines/deadline-badge";
 
 type Point = {
   id: string;
@@ -79,6 +80,7 @@ export default function AgreementDetailPage() {
 
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -97,6 +99,10 @@ export default function AgreementDetailPage() {
       onSuccess: () => {
         queryClient.invalidateQueries(trpc.interfacePoint.list.queryOptions({ agreementId }));
         setOpen(false);
+        setCreateError(null);
+      },
+      onError: (error) => {
+        setCreateError(error.message);
       },
     })
   );
@@ -194,9 +200,16 @@ export default function AgreementDetailPage() {
         cell: ({ row }) => {
           const d = row.getValue("dueDate") as string | null;
           return (
-            <span className="text-xs text-muted-foreground">
-              {d ? format(new Date(d), "dd MMM yyyy") : "—"}
-            </span>
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground">
+                {d ? format(new Date(d), "dd MMM yyyy") : "—"}
+              </span>
+              <DeadlineBadge
+                dueDate={d}
+                entityType="interface_point"
+                status={row.original.status}
+              />
+            </div>
           );
         },
       },
@@ -225,7 +238,12 @@ export default function AgreementDetailPage() {
   });
 
   function handleCreate(values: InterfacePointFormValues) {
-    createMutation.mutate({ agreementId, ...values });
+    createMutation.mutate({
+      agreementId,
+      ...values,
+      dueDate: values.dueDate || undefined,
+      description: values.description || undefined,
+    });
   }
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
@@ -270,13 +288,22 @@ export default function AgreementDetailPage() {
             <Button variant="outline" onClick={() => setImportOpen(true)}>
               <UploadIcon className="h-4 w-4 mr-1" /> Import
             </Button>
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog
+              open={open}
+              onOpenChange={(next) => {
+                setOpen(next);
+                if (!next) setCreateError(null);
+              }}
+            >
               <DialogTrigger render={<Button><PlusIcon className="h-4 w-4 mr-1" />New Interface Point</Button>} />
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>New Interface Point</DialogTitle>
                 </DialogHeader>
                 <InterfacePointForm onSubmit={handleCreate} isLoading={createMutation.isPending} />
+                {createError && (
+                  <p className="text-xs text-destructive">{createError}</p>
+                )}
               </DialogContent>
             </Dialog>
           </div>
@@ -349,7 +376,14 @@ export default function AgreementDetailPage() {
                 </TableRow>
               ) : (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} className="hover:bg-muted/30">
+                  <TableRow
+                    key={row.id}
+                    className={`hover:bg-muted/30 ${getDeadlineRowClassName(
+                      row.original.dueDate,
+                      "interface_point",
+                      row.original.status
+                    )}`}
+                  >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-2.5">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

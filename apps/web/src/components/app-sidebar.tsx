@@ -24,10 +24,12 @@ import {
   PlusIcon,
   LayoutDashboardIcon,
 } from "lucide-react";
+import { CreateProjectDialog } from "@/components/create-project-dialog";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const trpc = useTRPC();
   const pathname = usePathname();
+  const [openCreateDialog, setOpenCreateDialog] = React.useState(false);
 
   const { data: portfolios = [] } = useQuery(trpc.portfolio.list.queryOptions());
 
@@ -35,6 +37,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
+      <CreateProjectDialog open={openCreateDialog} onOpenChange={setOpenCreateDialog} />
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -83,7 +86,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </SidebarMenuItem>
             ))}
             <SidebarMenuItem>
-              <SidebarMenuButton className="text-muted-foreground" render={<a href="/?new=1" />}>
+              <SidebarMenuButton
+                className="text-muted-foreground"
+                onClick={() => setOpenCreateDialog(true)}
+              >
                 <PlusIcon className="size-4" />
                 <span>New Project</span>
               </SidebarMenuButton>

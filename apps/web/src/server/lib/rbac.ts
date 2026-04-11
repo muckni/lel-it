@@ -1,10 +1,40 @@
 import { TRPCError } from "@trpc/server";
-import { db, projectMembers } from "@owit/db";
+import { db, projectMembers, projects } from "@owit/db";
 import { and, eq } from "drizzle-orm";
 
 type Role = "viewer" | "editor" | "admin";
 
 const RANK: Record<Role, number> = { viewer: 0, editor: 1, admin: 2 };
+
+async function ensureOwnerAdminMembership(
+  userId: string,
+  projectId: string
+): Promise<Role | null> {
+  const row = await db.query.projects.findFirst({
+    where: eq(projects.id, projectId),
+    columns: { id: true },
+    with: {
+      portfolio: {
+        columns: { ownerId: true },
+      },
+    },
+  });
+
+  if (!row || row.portfolio.ownerId !== userId) {
+    return null;
+  }
+
+  await db
+    .insert(projectMembers)
+    .values({
+      projectId,
+      userId,
+      role: "admin",
+    })
+    .onConflictDoNothing();
+
+  return "admin";
+}
 
 /**
  * Throws FORBIDDEN if the user doesn't hold at least `minRole`.
@@ -15,15 +45,19 @@ export async function requireRole(
   projectId: string,
   minRole: Role
 ): Promise<void> {
-  const member = await db.query.projectMembers.findFirst({
+  let role = (await db.query.projectMembers.findFirst({
     where: and(
       eq(projectMembers.userId, userId),
       eq(projectMembers.projectId, projectId)
     ),
     columns: { role: true },
-  });
+  }))?.role as Role | undefined;
 
-  if (!member || RANK[member.role as Role] < RANK[minRole]) {
+  if (!role) {
+    role = (await ensureOwnerAdminMembership(userId, projectId)) ?? undefined;
+  }
+
+  if (!role || RANK[role] < RANK[minRole]) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: `Requires ${minRole} role`,
@@ -47,5 +81,8 @@ export async function getProjectRole(
     ),
     columns: { role: true },
   });
-  return (member?.role as Role) ?? null;
+  if (member?.role) {
+    return member.role as Role;
+  }
+  return ensureOwnerAdminMembership(userId, projectId);
 }

@@ -12,6 +12,8 @@ import { assetPlacementRouter } from "./asset-placement";
 import { reportRouter } from "./report";
 import { activityRouter } from "./activity";
 import { projectRouter } from "./project";
+import { attachmentRouter } from "./attachment";
+import { deadlineRouter } from "./deadline";
 
 export const appRouter = createTRPCRouter({
   portfolio: portfolioRouter,
@@ -27,6 +29,8 @@ export const appRouter = createTRPCRouter({
   report: reportRouter,
   activity: activityRouter,
   project: projectRouter,
+  attachment: attachmentRouter,
+  deadline: deadlineRouter,
 });
 
 export type AppRouter = typeof appRouter;

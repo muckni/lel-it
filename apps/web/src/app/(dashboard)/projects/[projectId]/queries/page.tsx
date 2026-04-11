@@ -46,6 +46,7 @@ import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { DeadlineBadge, getDeadlineRowClassName } from "@/components/deadlines/deadline-badge";
 
 const priorityColors: Record<string, string> = {
   urgent: "bg-red-100 text-red-800",
@@ -238,9 +239,16 @@ export default function QueriesPage() {
         cell: ({ row }) => {
           const d = row.getValue("dueDate") as string | null;
           return (
-            <span className="text-xs text-muted-foreground">
-              {d ? format(new Date(d), "dd MMM yyyy") : "—"}
-            </span>
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground">
+                {d ? format(new Date(d), "dd MMM yyyy") : "—"}
+              </span>
+              <DeadlineBadge
+                dueDate={d}
+                entityType="iq"
+                status={row.original.status}
+              />
+            </div>
           );
         },
       },
@@ -377,7 +385,14 @@ export default function QueriesPage() {
                 </TableRow>
               ) : (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} className="hover:bg-muted/30">
+                  <TableRow
+                    key={row.id}
+                    className={`hover:bg-muted/30 ${getDeadlineRowClassName(
+                      row.original.dueDate,
+                      "iq",
+                      row.original.status
+                    )}`}
+                  >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-2.5">
                         {flexRender(

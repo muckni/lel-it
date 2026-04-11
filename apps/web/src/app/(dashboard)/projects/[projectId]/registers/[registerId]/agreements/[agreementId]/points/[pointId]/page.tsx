@@ -42,13 +42,15 @@ import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useProjectRole } from "@/hooks/use-project-role";
+import { EntityAttachments } from "@/components/attachments/entity-attachments";
+import { DeadlineBadge, getDeadlineRowClassName } from "@/components/deadlines/deadline-badge";
 
 const deliverableSchema = z.object({
   title: z.string().min(1).max(255),
   description: z.string().optional(),
   responsiblePackageId: z.string().uuid().optional(),
   dueDate: z.string().optional(),
-  documentRef: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 
 type DeliverableFormValues = z.infer<typeof deliverableSchema>;
@@ -97,6 +99,7 @@ export default function PointDetailPage() {
   const queryClient = useQueryClient();
   const [delOpen, setDelOpen] = useState(false);
   const [iqOpen, setIqOpen] = useState(false);
+  const { canEdit } = useProjectRole(projectId);
 
   const { data: point, isLoading } = useQuery(
     trpc.interfacePoint.getById.queryOptions({ id: pointId })
@@ -154,7 +157,6 @@ export default function PointDetailPage() {
     createDeliverable.mutate({
       interfacePointId: pointId,
       ...values,
-      documentRef: values.documentRef || undefined,
       responsiblePackageId: values.responsiblePackageId || undefined,
     });
     form.reset();
@@ -262,11 +264,29 @@ export default function PointDetailPage() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Due Date</p>
-            <p className="font-medium mt-0.5">
+            <p className="font-medium mt-0.5 flex items-center gap-2">
               {point.dueDate ? format(new Date(point.dueDate), "dd MMM yyyy") : "—"}
+              <DeadlineBadge
+                dueDate={point.dueDate}
+                entityType="interface_point"
+                status={point.status}
+              />
             </p>
           </div>
         </div>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Attachments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EntityAttachments
+              entityType="interface_point"
+              entityId={pointId}
+              canManage={canEdit}
+            />
+          </CardContent>
+        </Card>
 
         {/* Deliverables */}
         <Card>
@@ -316,13 +336,6 @@ export default function PointDetailPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>Document Link</Label>
-                      <Input placeholder="https://..." {...form.register("documentRef")} />
-                      {form.formState.errors.documentRef && (
-                        <p className="text-xs text-destructive">{form.formState.errors.documentRef.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
                       <Label>Description</Label>
                       <Textarea rows={2} {...form.register("description")} />
                     </div>
@@ -342,62 +355,86 @@ export default function PointDetailPage() {
             ) : (
               <div className="space-y-2">
                 {deliverables.map((d: any) => (
-                  <div key={d.id} className="flex items-center gap-3 rounded-lg border px-4 py-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{d.title}</p>
-                      {d.description && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{d.description}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-1">
-                        {d.responsiblePackage && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <span className="h-2 w-2 rounded-full" style={{ background: d.responsiblePackage.color }} />
-                            {d.responsiblePackage.code}
-                          </span>
+                  <div
+                    id={`deliverable-${d.id}`}
+                    key={d.id}
+                    className={`rounded-lg border px-4 py-3 space-y-3 ${getDeadlineRowClassName(
+                      d.dueDate,
+                      "deliverable",
+                      d.status
+                    )}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{d.title}</p>
+                        {d.description && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{d.description}</p>
                         )}
-                        {d.dueDate && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <ClockIcon className="h-3 w-3" />
-                            {format(new Date(d.dueDate), "dd MMM yyyy")}
-                          </span>
-                        )}
-                        {d.documentRef && (
-                          <a
-                            href={d.documentRef}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                          >
-                            <ExternalLinkIcon className="h-3 w-3" /> Document
-                          </a>
-                        )}
+                        <div className="flex items-center gap-3 mt-1">
+                          {d.responsiblePackage && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <span className="h-2 w-2 rounded-full" style={{ background: d.responsiblePackage.color }} />
+                              {d.responsiblePackage.code}
+                            </span>
+                          )}
+                          {d.dueDate && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <ClockIcon className="h-3 w-3" />
+                              {format(new Date(d.dueDate), "dd MMM yyyy")}
+                            </span>
+                          )}
+                          <DeadlineBadge
+                            dueDate={d.dueDate}
+                            entityType="deliverable"
+                            status={d.status}
+                          />
+                          {d.documentRef && (
+                            <a
+                              href={d.documentRef}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                            >
+                              <ExternalLinkIcon className="h-3 w-3" /> Legacy Document Link
+                            </a>
+                          )}
+                        </div>
                       </div>
+                      <Select
+                        defaultValue={d.status}
+                        onValueChange={(v) => updateDeliverable.mutate({ id: d.id, status: v as any })}
+                      >
+                        <SelectTrigger className="w-28 h-7 text-xs border-0 p-1">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${deliverableStatusColors[d.status]}`}>
+                            {d.status.replace(/_/g, " ")}
+                          </span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DELIVERABLE_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s} className="text-xs">
+                              {s.replace(/_/g, " ")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                        onClick={() => deleteDeliverable.mutate({ id: d.id })}
+                      >
+                        <Trash2Icon className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                    <Select
-                      defaultValue={d.status}
-                      onValueChange={(v) => updateDeliverable.mutate({ id: d.id, status: v as any })}
-                    >
-                      <SelectTrigger className="w-28 h-7 text-xs border-0 p-1">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${deliverableStatusColors[d.status]}`}>
-                          {d.status.replace(/_/g, " ")}
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DELIVERABLE_STATUSES.map((s) => (
-                          <SelectItem key={s} value={s} className="text-xs">
-                            {s.replace(/_/g, " ")}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-                      onClick={() => deleteDeliverable.mutate({ id: d.id })}
-                    >
-                      <Trash2Icon className="h-3.5 w-3.5" />
-                    </Button>
+
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Attachments</p>
+                      <EntityAttachments
+                        entityType="deliverable"
+                        entityId={d.id}
+                        canManage={canEdit}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
