@@ -95,7 +95,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       const project = await createProject.mutateAsync({
         portfolioId,
         name: values.name.trim(),
-        description: values.description?.trim() || undefined,
+        description: values.description?.trim() || undefined, // intentionally coerces "" to undefined
         phase: values.phase ?? undefined,
       });
 
