@@ -8,6 +8,7 @@ import { deliverableRouter } from "./deliverable";
 import { interfaceQueryRouter } from "./interface-query";
 import { commentRouter } from "./comment";
 import { notificationRouter } from "./notification";
+import { assetPlacementRouter } from "./asset-placement";
 
 export const appRouter = createTRPCRouter({
   portfolio: portfolioRouter,
@@ -19,6 +20,7 @@ export const appRouter = createTRPCRouter({
   interfaceQuery: interfaceQueryRouter,
   comment: commentRouter,
   notification: notificationRouter,
+  assetPlacement: assetPlacementRouter,
 });
 
 export type AppRouter = typeof appRouter;

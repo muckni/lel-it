@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: ["@owit/3d", "@react-three/fiber", "@react-three/drei", "three"],
 };
 
 export default nextConfig;
