@@ -112,6 +112,24 @@ export const modelRegistryRouter = createTRPCRouter({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid file name in storage path" });
       }
 
+      // Verify the uploaded object's content type from storage (server-side)
+      const admin = createAdminClient();
+      const { data: objectInfo } = await admin.storage.from(BUCKET).info(input.storagePath);
+      if (objectInfo?.contentType) {
+        const ct = objectInfo.contentType.toLowerCase();
+        const validStorageMimes = ["model/gltf-binary", "model/gltf+json"];
+        // application/octet-stream is also accepted (some upload clients set this for .glb)
+        const isValidStorageMime =
+          validStorageMimes.some((mime) => ct.startsWith(mime)) ||
+          ct.startsWith("application/octet-stream");
+        if (!isValidStorageMime) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Rejected: storage content-type "${objectInfo.contentType}" is not a valid GLTF type`,
+          });
+        }
+      }
+
       const [created] = await db
         .insert(modelRegistryAssets)
         .values({

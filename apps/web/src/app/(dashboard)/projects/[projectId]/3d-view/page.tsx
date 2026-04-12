@@ -45,6 +45,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { featureFlags } from "@/lib/feature-flags";
 import { useProjectRole } from "@/hooks/use-project-role";
+import { ModelPreview } from "@/components/model-preview";
 
 const WindFarmScene = dynamic(
   () => import("@owit/3d").then((m) => ({ default: m.WindFarmScene })),
@@ -924,6 +925,12 @@ export default function ThreeDViewPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        {asset.modelUrl && (
+                          <ModelPreview
+                            url={asset.modelUrl}
+                            className="h-32 w-full rounded border bg-muted"
+                          />
+                        )}
                       </div>
                     )}
                   </div>
