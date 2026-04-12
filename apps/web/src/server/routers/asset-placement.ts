@@ -221,6 +221,50 @@ export const assetPlacementRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  exportLayout: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertMember(ctx.user.id, input.projectId);
+      const placements = await db.query.assetPlacements.findMany({
+        where: eq(assetPlacements.projectId, input.projectId),
+      });
+      return placements.map((p) => ({
+        label: p.label,
+        assetType: p.assetType,
+        positionX: p.positionX,
+        positionY: p.positionY,
+        positionZ: p.positionZ,
+        rotationY: p.rotationY,
+      }));
+    }),
+
+  importLayout: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        placements: z.array(
+          z.object({
+            label: z.string().min(1),
+            assetType: assetTypeEnum,
+            positionX: z.number(),
+            positionY: z.number(),
+            positionZ: z.number(),
+            rotationY: z.number().optional().default(0),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireRole(ctx.user.id, input.projectId, "editor");
+      await db.delete(assetPlacements).where(eq(assetPlacements.projectId, input.projectId));
+      if (input.placements.length > 0) {
+        await db.insert(assetPlacements).values(
+          input.placements.map((p) => ({ ...p, projectId: input.projectId }))
+        );
+      }
+      return { count: input.placements.length };
+    }),
+
   seedDemo: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {

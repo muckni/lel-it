@@ -33,7 +33,10 @@ import {
   CameraIcon,
   RouteIcon,
   RulerIcon,
+  DownloadIcon,
+  FolderOpenIcon,
 } from "lucide-react";
+import { exportToExcel, parseExcelFile } from "@/lib/excel";
 import {
   ASSET_TYPES,
   CRITICALITIES,
@@ -152,6 +155,8 @@ export default function ThreeDViewPage() {
   const [addAnchorError, setAddAnchorError] = useState<string | null>(null);
   const [measurementActive, setMeasurementActive] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const importFileRef = useRef<HTMLInputElement | null>(null);
 
   // Camera state from URL params
   const cameraControlRef = useRef<CameraControl | null>(null);
@@ -364,6 +369,65 @@ export default function ThreeDViewPage() {
       },
     })
   );
+
+  const importLayout = useMutation(
+    trpc.assetPlacement.importLayout.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(
+          trpc.assetPlacement.list.queryOptions({ projectId })
+        );
+        setImportError(null);
+      },
+      onError: (error) => setImportError(error.message),
+    })
+  );
+
+  async function handleImportFile(file: File) {
+    setImportError(null);
+    try {
+      const rows = await parseExcelFile(file);
+      const required = ["label", "assetType", "positionX", "positionY", "positionZ"];
+      if (rows.length === 0) {
+        setImportError("File is empty.");
+        return;
+      }
+      const firstRow = rows[0];
+      const missing = required.filter((col) => !(col in firstRow));
+      if (missing.length > 0) {
+        setImportError(`Missing columns: ${missing.join(", ")}`);
+        return;
+      }
+      const validAssetTypes = [
+        "turbine", "foundation", "oss", "onshore_substation",
+        "array_cable", "export_cable", "met_mast", "other",
+      ] as const;
+      type ValidAssetType = (typeof validAssetTypes)[number];
+      const placements = rows.map((row, i) => {
+        const at = String(row.assetType ?? "");
+        if (!(validAssetTypes as readonly string[]).includes(at)) {
+          throw new Error(`Row ${i + 1}: invalid assetType "${at}"`);
+        }
+        return {
+          label: String(row.label ?? ""),
+          assetType: at as ValidAssetType,
+          positionX: Number(row.positionX ?? 0),
+          positionY: Number(row.positionY ?? 0),
+          positionZ: Number(row.positionZ ?? 0),
+          rotationY: Number(row.rotationY ?? 0),
+        };
+      });
+      await importLayout.mutateAsync({ projectId, placements });
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Import failed.");
+    }
+  }
+
+  async function handleExportLayout() {
+    const rows = await queryClient.fetchQuery(
+      trpc.assetPlacement.exportLayout.queryOptions({ projectId })
+    );
+    exportToExcel(rows as Record<string, unknown>[], "asset-layout");
+  }
 
   const createUploadIntent = useMutation(
     trpc.modelRegistry.createUploadIntent.mutationOptions()
@@ -768,6 +832,53 @@ export default function ThreeDViewPage() {
                 >
                   {seedDemo.isPending ? "Loading..." : "Use Demo Layout"}
                 </Button>
+              )}
+
+              {assets.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={handleExportLayout}
+                  title="Download layout as Excel file"
+                >
+                  <DownloadIcon className="mr-1 h-3.5 w-3.5" />
+                  Export Layout
+                </Button>
+              )}
+
+              {canEdit && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => importFileRef.current?.click()}
+                    disabled={importLayout.isPending}
+                    title="Import layout from Excel or CSV file"
+                  >
+                    <FolderOpenIcon className="mr-1 h-3.5 w-3.5" />
+                    {importLayout.isPending ? "Importing..." : "Import Layout"}
+                  </Button>
+                  <input
+                    ref={importFileRef}
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        void handleImportFile(file);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                  {importError && (
+                    <span className="text-xs text-red-500 max-w-[200px] truncate" title={importError}>
+                      {importError}
+                    </span>
+                  )}
+                </>
               )}
             </>
           )}
