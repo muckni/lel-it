@@ -16,7 +16,9 @@ export function GltfAsset({ url, position, rotationY = 0, lodLevel = 0 }: Props)
   const renderedContent = useMemo(() => {
     if (lodLevel >= 3) {
       // LOD 3-4: render as bounding box wireframe
-      const box = new THREE.Box3().setFromObject(gltf.scene);
+      const tmp = gltf.scene.clone(false);
+      tmp.position.set(0, 0, 0);
+      const box = new THREE.Box3().setFromObject(tmp);
       const size = new THREE.Vector3();
       box.getSize(size);
 

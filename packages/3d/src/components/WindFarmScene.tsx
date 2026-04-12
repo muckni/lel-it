@@ -83,6 +83,7 @@ function RepresentativeAsset({
 }) {
   const position: [number, number, number] = assetType === "turbine" ? [0, 9, 0] : [0, 2, 0];
   if (modelUrl) {
+    {/* lodLevel intentionally omitted — representative mode always renders at full fidelity (LOD 0) */}
     return <GltfAsset url={modelUrl} position={position} rotationY={0} />;
   }
   if (assetType === "turbine") return <TurbineAsset position={position} rotationY={0} label="WTG-Generic" />;
