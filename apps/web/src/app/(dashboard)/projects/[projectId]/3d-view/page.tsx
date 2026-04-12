@@ -98,6 +98,12 @@ type ModelAsset = {
 
 type SceneMode = "representative" | "layout";
 
+function isFocusedAssetType(
+  value: string | null | undefined
+): value is FocusedAssetType {
+  return !!value && (FOCUSED_ASSET_TYPES as readonly string[]).includes(value);
+}
+
 export default function ThreeDViewPage() {
   const params = useParams();
   const router = useRouter();
@@ -148,7 +154,7 @@ export default function ThreeDViewPage() {
 
   const [addAnchorKey, setAddAnchorKey] = useState("");
   const [addAnchorLabel, setAddAnchorLabel] = useState("");
-  const [addAnchorAssetType, setAddAnchorAssetType] = useState<string>("turbine");
+  const [addAnchorAssetType, setAddAnchorAssetType] = useState<FocusedAssetType>("turbine");
   const [addAnchorX, setAddAnchorX] = useState("0");
   const [addAnchorY, setAddAnchorY] = useState("0");
   const [addAnchorZ, setAddAnchorZ] = useState("0");
@@ -341,6 +347,24 @@ export default function ThreeDViewPage() {
 
   const { data: mergedAnchors = [] } = useQuery(
     trpc.anchorCatalog.list.queryOptions({ projectId })
+  );
+  const mergedAnchorsForFocus = useMemo(
+    () => (mergedAnchors as any[]).filter((anchor) => anchor.assetType === focusAssetType),
+    [mergedAnchors, focusAssetType]
+  );
+  const resolveAnchorLabel = useCallback(
+    (assetType: string | null | undefined, anchorKey: string | null | undefined) => {
+      if (!assetType || !anchorKey) return null;
+      const customMatch = (mergedAnchors as any[]).find(
+        (anchor) => anchor.assetType === assetType && anchor.key === anchorKey
+      );
+      if (customMatch?.label) return customMatch.label as string;
+      if (isFocusedAssetType(assetType)) {
+        return getAnchorLabel(assetType, anchorKey);
+      }
+      return null;
+    },
+    [mergedAnchors]
   );
 
   const createAnchor = useMutation(
@@ -899,7 +923,7 @@ export default function ThreeDViewPage() {
             }
             sceneMode={sceneMode}
             focusAssetType={focusAssetType}
-            anchorCatalog={mergedAnchors.filter((a) => a.assetType === focusAssetType)}
+            anchorCatalog={mergedAnchorsForFocus}
             representativeModelUrl={representativeModelUrl}
             mappingTargetPointId={mappingPointId}
             onAnchorClick={handleAnchorClick}
@@ -964,7 +988,7 @@ export default function ThreeDViewPage() {
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
                 {selectedPoint.assetType && selectedPoint.assetPositionRef
-                  ? `${selectedPoint.assetType.toUpperCase()} · ${getAnchorLabel(
+                  ? `${selectedPoint.assetType.toUpperCase()} · ${resolveAnchorLabel(
                       selectedPoint.assetType,
                       selectedPoint.assetPositionRef
                     ) ?? selectedPoint.assetPositionRef}`
@@ -1031,7 +1055,7 @@ export default function ThreeDViewPage() {
                       <p className="font-mono text-[10px] text-muted-foreground">{point.code}</p>
                       <p className="text-xs font-medium line-clamp-2">{point.title}</p>
                       <p className="text-[11px] text-muted-foreground mt-1">
-                        {getAnchorLabel(focusAssetType, point.assetPositionRef) ?? point.assetPositionRef}
+                        {resolveAnchorLabel(focusAssetType, point.assetPositionRef) ?? point.assetPositionRef}
                       </p>
                     </button>
                     {canEdit && (
@@ -1090,7 +1114,7 @@ export default function ThreeDViewPage() {
 
                 {/* List custom anchors with delete */}
                 <div className="space-y-1">
-                  {mergedAnchors.filter((a) => a.isCustom && a.assetType === focusAssetType).map((a) => (
+                  {mergedAnchorsForFocus.filter((a) => a.isCustom).map((a) => (
                     <div key={a.key} className="flex items-center justify-between rounded border px-2 py-1">
                       <span className="text-xs">{a.label} <span className="text-muted-foreground">({a.key})</span></span>
                       <Button
@@ -1106,7 +1130,7 @@ export default function ThreeDViewPage() {
                       </Button>
                     </div>
                   ))}
-                  {mergedAnchors.filter((a) => a.isCustom && a.assetType === focusAssetType).length === 0 && (
+                  {mergedAnchorsForFocus.filter((a) => a.isCustom).length === 0 && (
                     <p className="text-xs text-muted-foreground">No custom anchors yet.</p>
                   )}
                 </div>
@@ -1119,7 +1143,7 @@ export default function ThreeDViewPage() {
                     <Label className="text-[10px]">Asset Type</Label>
                     <select
                       value={addAnchorAssetType}
-                      onChange={(e) => setAddAnchorAssetType(e.target.value)}
+                      onChange={(e) => setAddAnchorAssetType(e.target.value as FocusedAssetType)}
                       className="h-7 w-full rounded border bg-background px-2 text-xs"
                     >
                       {FOCUSED_ASSET_TYPES.map((t) => (

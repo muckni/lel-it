@@ -28,11 +28,12 @@ export function GltfAsset({ url, position, rotationY = 0, lodLevel = 0 }: Props)
   const renderedContent = useMemo(() => {
     if (lodLevel >= 3) {
       // LOD 3-4: render as bounding box wireframe
-      const tmp = gltf.scene.clone(false);
-      tmp.position.set(0, 0, 0);
-      const box = new THREE.Box3().setFromObject(tmp);
+      const box = new THREE.Box3().setFromObject(gltf.scene);
       const size = new THREE.Vector3();
       box.getSize(size);
+      if (!Number.isFinite(size.x) || !Number.isFinite(size.y) || !Number.isFinite(size.z) || size.lengthSq() === 0) {
+        size.set(1, 1, 1);
+      }
 
       return (
         <mesh>

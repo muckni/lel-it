@@ -3,7 +3,13 @@ import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { db, customAnchorDefinitions } from "@owit/db";
 import { eq, and } from "drizzle-orm";
 import { assertMember, requireRole } from "@/server/lib/rbac";
-import { ASSET_ANCHOR_CATALOG, mergeAnchors } from "@owit/shared";
+import {
+  ASSET_ANCHOR_CATALOG,
+  FOCUSED_ASSET_TYPES,
+  mergeAnchors,
+} from "@owit/shared";
+
+const focusedAssetTypeEnum = z.enum(FOCUSED_ASSET_TYPES);
 
 export const anchorCatalogRouter = createTRPCRouter({
   list: protectedProcedure
@@ -21,7 +27,7 @@ export const anchorCatalogRouter = createTRPCRouter({
     .input(
       z.object({
         projectId: z.string().uuid(),
-        assetType: z.string().min(1).max(50),
+        assetType: focusedAssetTypeEnum,
         key: z.string().min(1).max(50),
         label: z.string().min(1).max(255),
         positionX: z.number(),

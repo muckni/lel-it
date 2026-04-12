@@ -256,12 +256,16 @@ export const assetPlacementRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       await requireRole(ctx.user.id, input.projectId, "editor");
-      await db.delete(assetPlacements).where(eq(assetPlacements.projectId, input.projectId));
-      if (input.placements.length > 0) {
-        await db.insert(assetPlacements).values(
-          input.placements.map((p) => ({ ...p, projectId: input.projectId }))
-        );
-      }
+      await db.transaction(async (tx) => {
+        await tx
+          .delete(assetPlacements)
+          .where(eq(assetPlacements.projectId, input.projectId));
+        if (input.placements.length > 0) {
+          await tx.insert(assetPlacements).values(
+            input.placements.map((p) => ({ ...p, projectId: input.projectId }))
+          );
+        }
+      });
       return { count: input.placements.length };
     }),
 
