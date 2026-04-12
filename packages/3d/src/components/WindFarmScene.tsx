@@ -42,6 +42,7 @@ function AssetRenderer({
               url={a.modelUrl}
               position={pos}
               rotationY={a.rotationY}
+              lodLevel={a.lodLevel ?? 0}
             />
           );
         }
