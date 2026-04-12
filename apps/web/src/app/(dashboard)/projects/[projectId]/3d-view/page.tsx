@@ -32,6 +32,7 @@ import {
   UnlinkIcon,
   CameraIcon,
   RouteIcon,
+  RulerIcon,
 } from "lucide-react";
 import {
   ASSET_TYPES,
@@ -149,6 +150,7 @@ export default function ThreeDViewPage() {
   const [addAnchorY, setAddAnchorY] = useState("0");
   const [addAnchorZ, setAddAnchorZ] = useState("0");
   const [addAnchorError, setAddAnchorError] = useState<string | null>(null);
+  const [measurementActive, setMeasurementActive] = useState(false);
 
   // Camera state from URL params
   const cameraControlRef = useRef<CameraControl | null>(null);
@@ -679,6 +681,17 @@ export default function ThreeDViewPage() {
           {sceneMode === "layout" && (
             <>
               <Button
+                variant={measurementActive ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setMeasurementActive((value) => !value)}
+                title="Measure distance between two points"
+              >
+                <RulerIcon className="mr-1 h-3.5 w-3.5" />
+                Measure
+              </Button>
+
+              <Button
                 variant={showImpactedOnly ? "default" : "outline"}
                 size="sm"
                 className="h-7 text-xs"
@@ -769,7 +782,14 @@ export default function ThreeDViewPage() {
             initialCamera={initialCamera}
             onOrbitEnd={handleOrbitEnd}
             cameraControlRef={cameraControlRef}
+            measurementActive={measurementActive}
           />
+
+          {measurementActive && sceneMode === "layout" && (
+            <div className="absolute left-1/2 top-4 -translate-x-1/2 rounded-lg bg-black/80 px-3 py-1.5 text-xs text-amber-300 pointer-events-none">
+              Click two points to measure distance
+            </div>
+          )}
 
           <div className="absolute bottom-4 left-4 space-y-1 rounded-lg bg-black/70 px-3 py-2 text-xs text-white">
             <p className="mb-1.5 font-medium">Interface Points</p>

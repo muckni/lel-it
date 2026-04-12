@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment } from "@react-three/drei";
 import { ASSET_ANCHOR_CATALOG } from "@owit/shared";
 import { TurbineAsset } from "./assets/TurbineAsset";
@@ -10,6 +10,7 @@ import { OSSAsset } from "./assets/OSSAsset";
 import { GltfAsset } from "./assets/GltfAsset";
 import { CableRoute } from "./assets/CableRoute";
 import { InterfacePointMarkers } from "./InterfacePointMarkers";
+import { MeasurementTool } from "./MeasurementTool";
 import type { WindFarmSceneProps, CameraControl, CameraState } from "../types";
 
 function SeaPlane() {
@@ -128,6 +129,17 @@ function AnchorMarkers({
   );
 }
 
+function CursorManager({ measurementActive }: { measurementActive: boolean }) {
+  const { gl } = useThree();
+  useEffect(() => {
+    gl.domElement.style.cursor = measurementActive ? "crosshair" : "";
+    return () => {
+      gl.domElement.style.cursor = "";
+    };
+  }, [gl, measurementActive]);
+  return null;
+}
+
 const CAMERA_PRESETS = {
   top: { position: [0, 200, 0] as [number, number, number], target: [0, 0, 0] as [number, number, number] },
   iso: { position: [100, 80, 100] as [number, number, number], target: [0, 0, 0] as [number, number, number] },
@@ -151,6 +163,7 @@ export function WindFarmScene({
   initialCamera,
   onOrbitEnd,
   cameraControlRef,
+  measurementActive = false,
 }: WindFarmSceneProps) {
   const orbitControlsRef = useRef<any>(null);
 
@@ -279,6 +292,14 @@ export function WindFarmScene({
             selectedAnchorKey={selectedPoint.assetPositionRef}
             onAnchorClick={onAnchorClick}
           />
+        )}
+
+        {/* Cursor management for measurement mode */}
+        <CursorManager measurementActive={measurementActive} />
+
+        {/* Measurement tool — layout mode only */}
+        {!isRepresentative && (
+          <MeasurementTool active={measurementActive} />
         )}
 
         {/* Camera controls */}

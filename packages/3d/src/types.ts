@@ -64,6 +64,8 @@ export interface WindFarmSceneProps {
   onOrbitEnd?: (state: CameraState) => void;
   /** Imperative ref to trigger camera presets from outside the canvas */
   cameraControlRef?: React.MutableRefObject<CameraControl | null>;
+  /** When true, enables two-click distance measurement mode */
+  measurementActive?: boolean;
 }
 
 export interface CameraControl {
