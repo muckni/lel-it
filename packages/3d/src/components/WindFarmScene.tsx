@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment } from "@react-three/drei";
+import { ASSET_ANCHOR_CATALOG } from "@owit/shared";
 import { TurbineAsset } from "./assets/TurbineAsset";
 import { FoundationAsset } from "./assets/FoundationAsset";
 import { OSSAsset } from "./assets/OSSAsset";
@@ -72,6 +73,58 @@ function AssetRenderer({
   );
 }
 
+function RepresentativeAsset({
+  assetType,
+  modelUrl,
+}: {
+  assetType: "turbine" | "oss";
+  modelUrl?: string | null;
+}) {
+  const position: [number, number, number] = assetType === "turbine" ? [0, 9, 0] : [0, 2, 0];
+  if (modelUrl) {
+    return <GltfAsset url={modelUrl} position={position} rotationY={0} />;
+  }
+  if (assetType === "turbine") return <TurbineAsset position={position} rotationY={0} label="WTG-Generic" />;
+  return <OSSAsset position={position} rotationY={0} />;
+}
+
+function AnchorMarkers({
+  anchors,
+  selectedAnchorKey,
+  onAnchorClick,
+}: {
+  anchors: readonly { key: string; label: string; worldPosition: [number, number, number] }[];
+  selectedAnchorKey?: string | null;
+  onAnchorClick?: (anchorKey: string) => void;
+}) {
+  return (
+    <>
+      {anchors.map((anchor) => {
+        const isSelected = selectedAnchorKey === anchor.key;
+        return (
+          <group
+            key={anchor.key}
+            position={anchor.worldPosition}
+            onClick={(event) => {
+              event.stopPropagation();
+              onAnchorClick?.(anchor.key);
+            }}
+          >
+            <mesh>
+              <sphereGeometry args={[isSelected ? 0.28 : 0.2, 12, 12]} />
+              <meshStandardMaterial
+                color={isSelected ? "#22c55e" : "#f97316"}
+                emissive={isSelected ? "#16a34a" : "#ea580c"}
+                emissiveIntensity={0.45}
+              />
+            </mesh>
+          </group>
+        );
+      })}
+    </>
+  );
+}
+
 export function WindFarmScene({
   assets,
   interfacePoints,
@@ -79,6 +132,12 @@ export function WindFarmScene({
   selectedPointId,
   filterStatus,
   filterCriticality,
+  sceneMode = "layout",
+  focusAssetType = "turbine",
+  anchorCatalog,
+  representativeModelUrl,
+  mappingTargetPointId,
+  onAnchorClick,
 }: WindFarmSceneProps) {
   const visiblePoints = interfacePoints.filter((p) => {
     if (filterStatus && filterStatus !== "all" && p.status !== filterStatus) return false;
@@ -86,9 +145,31 @@ export function WindFarmScene({
     return true;
   });
 
+  const isRepresentative = sceneMode === "representative";
+  const representativeAnchors = (anchorCatalog ?? ASSET_ANCHOR_CATALOG[focusAssetType]).map((anchor) => ({
+    key: anchor.key,
+    label: anchor.label,
+    worldPosition: [
+      anchor.position[0],
+      anchor.position[1] + (focusAssetType === "turbine" ? 9 : 2),
+      anchor.position[2],
+    ] as [number, number, number],
+  }));
+  const anchorWorldPositions = Object.fromEntries(
+    representativeAnchors.map((anchor) => [anchor.key, anchor.worldPosition])
+  );
+  const selectedPoint = visiblePoints.find((point) => point.id === mappingTargetPointId);
+
   return (
     <Canvas
-      camera={{ position: [30, 30, 50], fov: 50 }}
+      camera={{
+        position: isRepresentative
+          ? focusAssetType === "turbine"
+            ? [14, 18, 18]
+            : [24, 18, 28]
+          : [30, 30, 50],
+        fov: 50,
+      }}
       shadows
       dpr={[1, 2]}
       gl={{ antialias: true }}
@@ -124,22 +205,36 @@ export function WindFarmScene({
           infiniteGrid
         />
 
-        {/* Wind farm assets */}
-        <AssetRenderer assets={assets} />
+        {isRepresentative ? (
+          <RepresentativeAsset assetType={focusAssetType} modelUrl={representativeModelUrl} />
+        ) : (
+          <AssetRenderer assets={assets} />
+        )}
 
         {/* Interface point markers */}
         <InterfacePointMarkers
           points={visiblePoints}
           onPointClick={onPointClick}
           selectedPointId={selectedPointId}
+          sceneMode={sceneMode}
+          anchorWorldPositions={anchorWorldPositions}
         />
+
+        {isRepresentative && selectedPoint && (
+          <AnchorMarkers
+            anchors={representativeAnchors}
+            selectedAnchorKey={selectedPoint.assetPositionRef}
+            onAnchorClick={onAnchorClick}
+          />
+        )}
 
         {/* Camera controls */}
         <OrbitControls
           enableDamping
           dampingFactor={0.05}
-          minDistance={5}
-          maxDistance={150}
+          target={isRepresentative ? [0, focusAssetType === "turbine" ? 9 : 6, 0] : undefined}
+          minDistance={isRepresentative ? 4 : 5}
+          maxDistance={isRepresentative ? 60 : 150}
           maxPolarAngle={Math.PI / 2.1}
         />
       </Suspense>

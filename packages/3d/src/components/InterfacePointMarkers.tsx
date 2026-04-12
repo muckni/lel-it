@@ -1,7 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
-import { useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
-import * as THREE from "three";
 import type { InterfacePointMarker } from "../types";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -22,6 +19,8 @@ interface Props {
   onPointClick?: (id: string) => void;
   selectedPointId?: string | null;
   colorBy?: "status" | "criticality";
+  anchorWorldPositions?: Record<string, [number, number, number]>;
+  sceneMode?: "representative" | "layout";
 }
 
 export function InterfacePointMarkers({
@@ -29,16 +28,29 @@ export function InterfacePointMarkers({
   onPointClick,
   selectedPointId,
   colorBy = "status",
+  anchorWorldPositions,
+  sceneMode = "layout",
 }: Props) {
-  // Render individual spheres for interface points with 3D positions
-  // For points without explicit positions, distribute them in a grid pattern
+  const positionedPoints = points
+    .map((point, i) => {
+      if (
+        sceneMode === "representative" &&
+        point.assetPositionRef &&
+        anchorWorldPositions?.[point.assetPositionRef]
+      ) {
+        return { point, position: anchorWorldPositions[point.assetPositionRef] };
+      }
+
+      const x = point.spatialX ?? (i % 10) * 3 - 15;
+      const y = point.spatialY ?? 2;
+      const z = point.spatialZ ?? Math.floor(i / 10) * 3 - 15;
+      return { point, position: [x, y, z] as [number, number, number] };
+    })
+    .filter((entry) => (sceneMode === "representative" ? !!entry.point.assetPositionRef : true));
 
   return (
     <>
-      {points.map((point, i) => {
-        const x = point.spatialX ?? (i % 10) * 3 - 15;
-        const y = point.spatialY ?? 2;
-        const z = point.spatialZ ?? Math.floor(i / 10) * 3 - 15;
+      {positionedPoints.map(({ point, position }) => {
         const color = STATUS_COLORS[point.status] ?? "#9CA3AF";
         const size = CRITICALITY_SIZES[point.criticality] ?? 0.22;
         const isSelected = selectedPointId === point.id;
@@ -46,7 +58,7 @@ export function InterfacePointMarkers({
         return (
           <group
             key={point.id}
-            position={[x, y, z]}
+            position={position}
             onClick={(e) => {
               e.stopPropagation();
               onPointClick?.(point.id);
