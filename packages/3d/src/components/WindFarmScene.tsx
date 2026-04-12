@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment } from "@react-three/drei";
 import { ASSET_ANCHOR_CATALOG } from "@owit/shared";
@@ -9,7 +9,7 @@ import { FoundationAsset } from "./assets/FoundationAsset";
 import { OSSAsset } from "./assets/OSSAsset";
 import { GltfAsset } from "./assets/GltfAsset";
 import { InterfacePointMarkers } from "./InterfacePointMarkers";
-import type { WindFarmSceneProps } from "../types";
+import type { WindFarmSceneProps, CameraControl, CameraState } from "../types";
 
 function SeaPlane() {
   return (
@@ -127,6 +127,12 @@ function AnchorMarkers({
   );
 }
 
+const CAMERA_PRESETS = {
+  top: { position: [0, 200, 0] as [number, number, number], target: [0, 0, 0] as [number, number, number] },
+  iso: { position: [100, 80, 100] as [number, number, number], target: [0, 0, 0] as [number, number, number] },
+  side: { position: [200, 20, 0] as [number, number, number], target: [0, 0, 0] as [number, number, number] },
+};
+
 export function WindFarmScene({
   assets,
   interfacePoints,
@@ -140,7 +146,30 @@ export function WindFarmScene({
   representativeModelUrl,
   mappingTargetPointId,
   onAnchorClick,
+  initialCamera,
+  onOrbitEnd,
+  cameraControlRef,
 }: WindFarmSceneProps) {
+  const orbitControlsRef = useRef<any>(null);
+
+  // Wire up the imperative camera control ref for use by parent
+  useEffect(() => {
+    if (!cameraControlRef) return;
+    cameraControlRef.current = {
+      setPreset: (preset: "top" | "iso" | "side") => {
+        const controls = orbitControlsRef.current;
+        if (!controls) return;
+        const p = CAMERA_PRESETS[preset];
+        controls.object.position.set(...p.position);
+        controls.target.set(...p.target);
+        controls.update();
+      },
+    };
+    return () => {
+      if (cameraControlRef) cameraControlRef.current = null;
+    };
+  }, [cameraControlRef]);
+
   const visiblePoints = interfacePoints.filter((p) => {
     if (filterStatus && filterStatus !== "all" && p.status !== filterStatus) return false;
     if (filterCriticality && filterCriticality !== "all" && p.criticality !== filterCriticality) return false;
@@ -162,14 +191,17 @@ export function WindFarmScene({
   );
   const selectedPoint = visiblePoints.find((point) => point.id === mappingTargetPointId);
 
+  const defaultPosition: [number, number, number] = initialCamera?.position
+    ?? (isRepresentative
+      ? focusAssetType === "turbine"
+        ? [14, 18, 18]
+        : [24, 18, 28]
+      : [30, 30, 50]);
+
   return (
     <Canvas
       camera={{
-        position: isRepresentative
-          ? focusAssetType === "turbine"
-            ? [14, 18, 18]
-            : [24, 18, 28]
-          : [30, 30, 50],
+        position: defaultPosition,
         fov: 50,
       }}
       shadows
@@ -232,12 +264,26 @@ export function WindFarmScene({
 
         {/* Camera controls */}
         <OrbitControls
+          ref={orbitControlsRef}
           enableDamping
           dampingFactor={0.05}
-          target={isRepresentative ? [0, focusAssetType === "turbine" ? 9 : 6, 0] : undefined}
+          target={
+            initialCamera?.target ??
+            (isRepresentative ? [0, focusAssetType === "turbine" ? 9 : 6, 0] : undefined)
+          }
           minDistance={isRepresentative ? 4 : 5}
           maxDistance={isRepresentative ? 60 : 150}
           maxPolarAngle={Math.PI / 2.1}
+          onEnd={() => {
+            if (!onOrbitEnd || !orbitControlsRef.current) return;
+            const controls = orbitControlsRef.current;
+            const pos = controls.object.position;
+            const tgt = controls.target;
+            onOrbitEnd({
+              position: [pos.x, pos.y, pos.z],
+              target: [tgt.x, tgt.y, tgt.z],
+            });
+          }}
         />
       </Suspense>
     </Canvas>

@@ -29,6 +29,11 @@ export interface InterfacePointMarker {
 
 export type SceneMode = "representative" | "layout";
 
+export interface CameraState {
+  position: [number, number, number];
+  target: [number, number, number];
+}
+
 export interface WindFarmSceneProps {
   assets: AssetPlacement[];
   interfacePoints: InterfacePointMarker[];
@@ -42,4 +47,14 @@ export interface WindFarmSceneProps {
   representativeModelUrl?: string | null;
   mappingTargetPointId?: string | null;
   onAnchorClick?: (anchorKey: string) => void;
+  /** Initial camera state to restore on mount */
+  initialCamera?: CameraState | null;
+  /** Called when the user finishes orbiting — use to persist camera state */
+  onOrbitEnd?: (state: CameraState) => void;
+  /** Imperative ref to trigger camera presets from outside the canvas */
+  cameraControlRef?: React.MutableRefObject<CameraControl | null>;
+}
+
+export interface CameraControl {
+  setPreset: (preset: "top" | "iso" | "side") => void;
 }

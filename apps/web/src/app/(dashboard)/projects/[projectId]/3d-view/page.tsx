@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { CameraControl, CameraState } from "@owit/3d";
 import dynamic from "next/dynamic";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,6 +30,7 @@ import {
   UploadCloudIcon,
   LinkIcon,
   UnlinkIcon,
+  CameraIcon,
 } from "lucide-react";
 import {
   ASSET_TYPES,
@@ -129,6 +131,45 @@ export default function ThreeDViewPage() {
   const [mappingPointId, setMappingPointId] = useState<string | null>(null);
   const [mappingSearch, setMappingSearch] = useState("");
   const [mappingError, setMappingError] = useState<string | null>(null);
+
+  // Camera state from URL params
+  const cameraControlRef = useRef<CameraControl | null>(null);
+  const cameraDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const initialCamera = useMemo<CameraState | null>(() => {
+    const cx = parseFloat(searchParams.get("cx") ?? "");
+    const cy = parseFloat(searchParams.get("cy") ?? "");
+    const cz = parseFloat(searchParams.get("cz") ?? "");
+    const tx = parseFloat(searchParams.get("tx") ?? "");
+    const ty = parseFloat(searchParams.get("ty") ?? "");
+    const tz = parseFloat(searchParams.get("tz") ?? "");
+    if ([cx, cy, cz, tx, ty, tz].some(isNaN)) return null;
+    return { position: [cx, cy, cz], target: [tx, ty, tz] };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount — intentionally not reactive to searchParams changes
+
+  const handleOrbitEnd = useCallback(
+    (state: CameraState) => {
+      if (cameraDebounceRef.current) clearTimeout(cameraDebounceRef.current);
+      cameraDebounceRef.current = setTimeout(() => {
+        const next = new URLSearchParams(searchParams.toString());
+        const [cx, cy, cz] = state.position;
+        const [tx, ty, tz] = state.target;
+        next.set("cx", cx.toFixed(2));
+        next.set("cy", cy.toFixed(2));
+        next.set("cz", cz.toFixed(2));
+        next.set("tx", tx.toFixed(2));
+        next.set("ty", ty.toFixed(2));
+        next.set("tz", tz.toFixed(2));
+        router.replace(`${pathname}?${next.toString()}`);
+      }, 500);
+    },
+    [searchParams, router, pathname]
+  );
+
+  function applyPreset(preset: "top" | "iso" | "side") {
+    cameraControlRef.current?.setPreset(preset);
+  }
 
   useEffect(() => {
     const currentMode = searchParams.get("mode");
@@ -516,6 +557,38 @@ export default function ThreeDViewPage() {
             </SelectContent>
           </Select>
 
+          {/* Camera preset buttons — always visible regardless of scene mode */}
+          <div className="flex items-center gap-1 border-l pl-2">
+            <CameraIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => applyPreset("top")}
+              title="Top-down view"
+            >
+              Top
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => applyPreset("iso")}
+              title="Isometric view"
+            >
+              Iso
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => applyPreset("side")}
+              title="Side view"
+            >
+              Side
+            </Button>
+          </div>
+
           {sceneMode === "layout" && (
             <>
               <Button
@@ -593,6 +666,9 @@ export default function ThreeDViewPage() {
             representativeModelUrl={representativeModelUrl}
             mappingTargetPointId={mappingPointId}
             onAnchorClick={handleAnchorClick}
+            initialCamera={initialCamera}
+            onOrbitEnd={handleOrbitEnd}
+            cameraControlRef={cameraControlRef}
           />
 
           <div className="absolute bottom-4 left-4 space-y-1 rounded-lg bg-black/70 px-3 py-2 text-xs text-white">
