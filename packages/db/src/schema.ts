@@ -1199,6 +1199,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   interfaceRegisters: many(interfaceRegisters),
   projectMembers: many(projectMembers),
   assetPlacements: many(assetPlacements),
+  cableRoutes: many(cableRoutes),
   modelRegistryAssets: many(modelRegistryAssets),
   attachments: many(attachments),
   deadlineDigestSends: many(deadlineDigestSends),
@@ -1356,6 +1357,47 @@ export const modelRegistryAssetsRelations = relations(
     placements: many(assetPlacements),
   })
 );
+
+export const cableRoutes = pgTable(
+  "cable_routes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    cableType: text("cable_type").notNull(), // "array_cable" | "export_cable"
+    fromAssetId: uuid("from_asset_id")
+      .notNull()
+      .references(() => assetPlacements.id, { onDelete: "cascade" }),
+    toAssetId: uuid("to_asset_id")
+      .notNull()
+      .references(() => assetPlacements.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    color: text("color"),
+    waypoints: jsonb("waypoints").$type<[number, number, number][]>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("cable_routes_project_id_idx").on(table.projectId)]
+);
+
+export const cableRoutesRelations = relations(cableRoutes, ({ one }) => ({
+  project: one(projects, {
+    fields: [cableRoutes.projectId],
+    references: [projects.id],
+  }),
+  fromAsset: one(assetPlacements, {
+    fields: [cableRoutes.fromAssetId],
+    references: [assetPlacements.id],
+    relationName: "cableFrom",
+  }),
+  toAsset: one(assetPlacements, {
+    fields: [cableRoutes.toAssetId],
+    references: [assetPlacements.id],
+    relationName: "cableTo",
+  }),
+}));
 
 export const attachmentsRelations = relations(attachments, ({ one }) => ({
   project: one(projects, {

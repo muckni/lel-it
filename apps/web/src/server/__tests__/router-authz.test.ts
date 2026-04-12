@@ -45,6 +45,11 @@ vi.mock("@owit/db", () => ({
         findFirst: vi.fn().mockResolvedValue({ id: "00000000-0000-4000-8000-000000000004", agreementId: "00000000-0000-4000-8000-000000000003" }),
       },
       workPackages: { findMany: vi.fn().mockResolvedValue([]) },
+      assetPlacements: { findMany: vi.fn().mockResolvedValue([]) },
+      cableRoutes: {
+        findMany: vi.fn().mockResolvedValue([]),
+        findFirst: vi.fn().mockResolvedValue({ projectId: "00000000-0000-4000-8000-000000000001" }),
+      },
     },
     select: vi.fn().mockReturnThis(),
     from: vi.fn().mockReturnThis(),
@@ -65,6 +70,7 @@ vi.mock("@owit/db", () => ({
   interfaceQueries: {},
   deliverables: {},
   assetPlacements: {},
+  cableRoutes: {},
   memberWorkPackages: {},
 }));
 

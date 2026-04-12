@@ -27,6 +27,16 @@ export interface InterfacePointMarker {
   spatialZ: number | null;
 }
 
+export interface CableRoute {
+  id: string;
+  cableType: "array_cable" | "export_cable";
+  fromAssetId: string;
+  toAssetId: string;
+  label: string;
+  color?: string;
+  waypoints?: [number, number, number][];
+}
+
 export type SceneMode = "representative" | "layout";
 
 export interface CameraState {
@@ -36,6 +46,7 @@ export interface CameraState {
 
 export interface WindFarmSceneProps {
   assets: AssetPlacement[];
+  cableRoutes?: CableRoute[];
   interfacePoints: InterfacePointMarker[];
   onPointClick?: (pointId: string) => void;
   selectedPointId?: string | null;

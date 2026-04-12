@@ -31,6 +31,7 @@ import {
   LinkIcon,
   UnlinkIcon,
   CameraIcon,
+  RouteIcon,
 } from "lucide-react";
 import {
   ASSET_TYPES,
@@ -121,6 +122,7 @@ export default function ThreeDViewPage() {
   const [filterCriticality, setFilterCriticality] = useState("all");
   const [showImpactedOnly, setShowImpactedOnly] = useState(false);
   const [addAssetOpen, setAddAssetOpen] = useState(false);
+  const [addCableOpen, setAddCableOpen] = useState(false);
   const [uploadModelOpen, setUploadModelOpen] = useState(false);
   const [showAssetTable, setShowAssetTable] = useState(false);
   const [uploadType, setUploadType] = useState<(typeof ASSET_TYPES)[number]>("turbine");
@@ -128,6 +130,12 @@ export default function ThreeDViewPage() {
   const [uploadVersion, setUploadVersion] = useState("v1");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+
+  const [cableFromAssetId, setCableFromAssetId] = useState("");
+  const [cableToAssetId, setCableToAssetId] = useState("");
+  const [cableCableType, setCableCableType] = useState<"array_cable" | "export_cable">("array_cable");
+  const [cableLabel, setCableLabel] = useState("");
+  const [cableError, setCableError] = useState<string | null>(null);
 
   const [mappingPointId, setMappingPointId] = useState<string | null>(null);
   const [mappingSearch, setMappingSearch] = useState("");
@@ -203,6 +211,10 @@ export default function ThreeDViewPage() {
     trpc.assetPlacement.list.queryOptions({ projectId })
   );
 
+  const { data: cableRoutesRaw = [] } = useQuery(
+    trpc.cableRoute.list.queryOptions({ projectId })
+  );
+
   const { data: allPoints = [] } = useQuery(
     trpc.interfacePoint.listByProject.queryOptions({ projectId })
   );
@@ -242,6 +254,33 @@ export default function ThreeDViewPage() {
       onSuccess: async () => {
         await queryClient.invalidateQueries(
           trpc.assetPlacement.list.queryOptions({ projectId })
+        );
+      },
+    })
+  );
+
+  const createCableRoute = useMutation(
+    trpc.cableRoute.create.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(
+          trpc.cableRoute.list.queryOptions({ projectId })
+        );
+        setAddCableOpen(false);
+        setCableFromAssetId("");
+        setCableToAssetId("");
+        setCableCableType("array_cable");
+        setCableLabel("");
+        setCableError(null);
+      },
+      onError: (error) => setCableError(error.message),
+    })
+  );
+
+  const deleteCableRoute = useMutation(
+    trpc.cableRoute.delete.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(
+          trpc.cableRoute.list.queryOptions({ projectId })
         );
       },
     })
@@ -630,6 +669,18 @@ export default function ThreeDViewPage() {
                 </Button>
               )}
 
+              {canEdit && assets.length >= 2 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => setAddCableOpen(true)}
+                >
+                  <RouteIcon className="mr-1 h-3.5 w-3.5" />
+                  Add Cable
+                </Button>
+              )}
+
               {featureFlags.threeDModelRegistry && canEdit && (
                 <Button
                   size="sm"
@@ -661,6 +712,7 @@ export default function ThreeDViewPage() {
         <div className="relative flex-1">
           <WindFarmScene
             assets={assets}
+            cableRoutes={cableRoutesRaw as any[]}
             interfacePoints={markers}
             onPointClick={handlePointClick}
             selectedPointId={selectedPointId}
@@ -937,9 +989,125 @@ export default function ThreeDViewPage() {
                 );
               })}
             </div>
+
+            {cableRoutesRaw.length > 0 && (
+              <div className="border-t">
+                <div className="border-b p-4">
+                  <p className="text-sm font-semibold">Cable Routes</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {cableRoutesRaw.length} route{cableRoutesRaw.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className="divide-y">
+                  {(cableRoutesRaw as any[]).map((route) => (
+                    <div key={route.id} className="flex items-center gap-2 px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium">{route.label}</p>
+                        <p className="text-[10px] capitalize text-muted-foreground">
+                          {route.cableType.replace(/_/g, " ")}
+                        </p>
+                      </div>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => deleteCableRoute.mutate({ id: route.id })}
+                        >
+                          <Trash2Icon className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      <Dialog open={addCableOpen} onOpenChange={setAddCableOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Cable Route</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>From Asset *</Label>
+              <Select value={cableFromAssetId} onValueChange={(value) => setCableFromAssetId(value ?? "")}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Select asset..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {assets.map((asset) => (
+                    <SelectItem key={asset.id} value={asset.id} className="text-xs">
+                      {asset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>To Asset *</Label>
+              <Select value={cableToAssetId} onValueChange={(value) => setCableToAssetId(value ?? "")}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Select asset..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {assets.map((asset) => (
+                    <SelectItem key={asset.id} value={asset.id} className="text-xs">
+                      {asset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Cable Type *</Label>
+              <Select
+                value={cableCableType}
+                onValueChange={(value) => setCableCableType(value as "array_cable" | "export_cable")}
+              >
+                <SelectTrigger className="text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="array_cable" className="text-xs">Array Cable</SelectItem>
+                  <SelectItem value="export_cable" className="text-xs">Export Cable</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Label *</Label>
+              <Input
+                placeholder="Cable-01"
+                value={cableLabel}
+                onChange={(event) => setCableLabel(event.target.value)}
+              />
+            </div>
+            {cableError && <p className="text-xs text-red-600">{cableError}</p>}
+            <Button
+              onClick={() => {
+                if (!cableFromAssetId || !cableToAssetId || !cableLabel.trim()) {
+                  setCableError("All fields are required.");
+                  return;
+                }
+                setCableError(null);
+                createCableRoute.mutate({
+                  projectId,
+                  fromAssetId: cableFromAssetId,
+                  toAssetId: cableToAssetId,
+                  cableType: cableCableType,
+                  label: cableLabel.trim(),
+                });
+              }}
+              disabled={createCableRoute.isPending}
+            >
+              {createCableRoute.isPending ? "Adding..." : "Add Cable Route"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={addAssetOpen} onOpenChange={setAddAssetOpen}>
         <DialogContent>

@@ -8,6 +8,7 @@ import { TurbineAsset } from "./assets/TurbineAsset";
 import { FoundationAsset } from "./assets/FoundationAsset";
 import { OSSAsset } from "./assets/OSSAsset";
 import { GltfAsset } from "./assets/GltfAsset";
+import { CableRoute } from "./assets/CableRoute";
 import { InterfacePointMarkers } from "./InterfacePointMarkers";
 import type { WindFarmSceneProps, CameraControl, CameraState } from "../types";
 
@@ -135,6 +136,7 @@ const CAMERA_PRESETS = {
 
 export function WindFarmScene({
   assets,
+  cableRoutes = [],
   interfacePoints,
   onPointClick,
   selectedPointId,
@@ -242,7 +244,24 @@ export function WindFarmScene({
         {isRepresentative ? (
           <RepresentativeAsset assetType={focusAssetType} modelUrl={representativeModelUrl} />
         ) : (
-          <AssetRenderer assets={assets} />
+          <>
+            <AssetRenderer assets={assets} />
+            {cableRoutes.map((route) => {
+              const fromAsset = assets.find((a) => a.id === route.fromAssetId);
+              const toAsset = assets.find((a) => a.id === route.toAssetId);
+              if (!fromAsset || !toAsset) return null;
+              return (
+                <CableRoute
+                  key={route.id}
+                  from={[fromAsset.positionX, fromAsset.positionY, fromAsset.positionZ]}
+                  to={[toAsset.positionX, toAsset.positionY, toAsset.positionZ]}
+                  cableType={route.cableType as "array_cable" | "export_cable"}
+                  color={route.color ?? undefined}
+                  waypoints={route.waypoints ?? undefined}
+                />
+              );
+            })}
+          </>
         )}
 
         {/* Interface point markers */}
