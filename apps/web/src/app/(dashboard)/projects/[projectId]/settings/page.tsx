@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { useProjectRole } from "@/hooks/use-project-role";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProjectSetupWizard } from "@/components/wizards/project-setup-wizard";
 
 // ── Invite Form ──────────────────────────────────────────────────────────────
 
@@ -337,6 +338,7 @@ export default function SettingsPage() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [wpDialogOpen, setWpDialogOpen] = useState(false);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
 
   const { isAdmin, canEdit } = useProjectRole(projectId);
 
@@ -451,6 +453,16 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     Add packages manually or use industry templates (WTG, Foundation, OSS, …)
                   </p>
+                  <Button
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => {
+                      setWpDialogOpen(false);
+                      setShowSetupWizard(true);
+                    }}
+                  >
+                    Run Setup Wizard
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -607,6 +619,12 @@ export default function SettingsPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <ProjectSetupWizard
+        projectId={projectId}
+        open={showSetupWizard}
+        onOpenChange={setShowSetupWizard}
+      />
     </div>
   );
 }

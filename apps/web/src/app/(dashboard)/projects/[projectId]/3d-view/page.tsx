@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,12 +27,22 @@ import {
   PlusIcon,
   Trash2Icon,
   UploadCloudIcon,
+  LinkIcon,
+  UnlinkIcon,
 } from "lucide-react";
-import { ASSET_TYPES, CRITICALITIES, POINT_STATUSES } from "@owit/shared";
+import {
+  ASSET_TYPES,
+  CRITICALITIES,
+  POINT_STATUSES,
+  ASSET_ANCHOR_CATALOG,
+  type FocusedAssetType,
+  getAnchorLabel,
+} from "@owit/shared";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { featureFlags } from "@/lib/feature-flags";
+import { useProjectRole } from "@/hooks/use-project-role";
 
 const WindFarmScene = dynamic(
   () => import("@owit/3d").then((m) => ({ default: m.WindFarmScene })),
@@ -73,16 +83,34 @@ type ModelAsset = {
   semanticTag: string | null;
   versionLabel: string;
   fileName: string;
+  isActiveVersion: boolean;
   signedUrl?: string | null;
 };
+
+type SceneMode = "representative" | "layout";
 
 export default function ThreeDViewPage() {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const projectId = params.projectId as string;
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { canEdit } = useProjectRole(projectId);
+
+  const defaultSceneMode: SceneMode =
+    featureFlags.threeDRepresentativeMode && searchParams.get("mode") !== "layout"
+      ? "representative"
+      : "layout";
+  const defaultFocusAssetType: FocusedAssetType =
+    searchParams.get("asset") === "oss" ? "oss" : "turbine";
+
+  const [sceneMode, setSceneMode] = useState<SceneMode>(defaultSceneMode);
+  const [focusAssetType, setFocusAssetType] = useState<FocusedAssetType>(
+    defaultFocusAssetType
+  );
 
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
@@ -97,6 +125,30 @@ export default function ThreeDViewPage() {
   const [uploadVersion, setUploadVersion] = useState("v1");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+
+  const [mappingPointId, setMappingPointId] = useState<string | null>(null);
+  const [mappingSearch, setMappingSearch] = useState("");
+  const [mappingError, setMappingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const currentMode = searchParams.get("mode");
+    const currentAsset = searchParams.get("asset");
+    const needsModeUpdate = currentMode !== sceneMode;
+    const needsAssetUpdate =
+      sceneMode === "representative"
+        ? currentAsset !== focusAssetType
+        : currentAsset !== null;
+    if (!needsModeUpdate && !needsAssetUpdate) return;
+
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("mode", sceneMode);
+    if (sceneMode === "representative") {
+      next.set("asset", focusAssetType);
+    } else {
+      next.delete("asset");
+    }
+    router.replace(`${pathname}?${next.toString()}`);
+  }, [sceneMode, focusAssetType, searchParams, router, pathname]);
 
   const { data: assetsRaw = [] } = useQuery(
     trpc.assetPlacement.list.queryOptions({ projectId })
@@ -156,6 +208,32 @@ export default function ThreeDViewPage() {
     })
   );
 
+  const set3dAnchor = useMutation(
+    trpc.interfacePoint.set3dAnchor.mutationOptions({
+      onSuccess: async (updated) => {
+        await queryClient.invalidateQueries(
+          trpc.interfacePoint.listByProject.queryOptions({ projectId })
+        );
+        setMappingError(null);
+        setMappingPointId(null);
+        setSelectedPointId(updated.id);
+      },
+      onError: (error) => setMappingError(error.message),
+    })
+  );
+
+  const clear3dAnchor = useMutation(
+    trpc.interfacePoint.clear3dAnchor.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(
+          trpc.interfacePoint.listByProject.queryOptions({ projectId })
+        );
+        setMappingError(null);
+      },
+      onError: (error) => setMappingError(error.message),
+    })
+  );
+
   const createUploadIntent = useMutation(
     trpc.modelRegistry.createUploadIntent.mutationOptions()
   );
@@ -188,6 +266,21 @@ export default function ThreeDViewPage() {
     [models]
   );
 
+  const representativeModelUrl = useMemo(() => {
+    const byType = models.filter((model) => model.assetType === focusAssetType);
+    if (byType.length === 0) return null;
+
+    const activeGeneric = byType.find(
+      (model) => model.isActiveVersion && (model.semanticTag ?? "").toLowerCase() === "generic"
+    );
+    const activeAny = byType.find((model) => model.isActiveVersion);
+    const genericAny = byType.find(
+      (model) => (model.semanticTag ?? "").toLowerCase() === "generic"
+    );
+    const selected = activeGeneric ?? activeAny ?? genericAny ?? byType[0];
+    return selected.signedUrl ?? null;
+  }, [models, focusAssetType]);
+
   const assets = useMemo(
     () =>
       (assetsRaw as any[]).map((asset) => {
@@ -204,8 +297,43 @@ export default function ThreeDViewPage() {
 
   const selectedAsset = assets.find((asset) => asset.id === selectedAssetId) ?? null;
 
+  const allProjectPoints = allPoints as any[];
+  const mappedPointsForFocus = useMemo(
+    () =>
+      allProjectPoints.filter(
+        (point) => point.assetType === focusAssetType && !!point.assetPositionRef
+      ),
+    [allProjectPoints, focusAssetType]
+  );
+
+  const unmappedPointsForFocus = useMemo(() => {
+    const q = mappingSearch.trim().toLowerCase();
+    return allProjectPoints
+      .filter((point) => !point.assetPositionRef)
+      .filter((point) => (q ? String(point.title ?? "").toLowerCase().includes(q) : true));
+  }, [allProjectPoints, mappingSearch]);
+
   const markers = useMemo(() => {
-    const source = allPoints as any[];
+    const source = allProjectPoints;
+
+    if (sceneMode === "representative") {
+      return source
+        .filter((point) => point.assetType === focusAssetType)
+        .map((point) => ({
+          id: point.id,
+          code: point.code,
+          title: point.title,
+          status: point.status,
+          criticality: point.criticality,
+          dueDate: point.dueDate ?? null,
+          assetType: point.assetType ?? null,
+          assetPositionRef: point.assetPositionRef ?? null,
+          spatialX: point.spatialX ?? null,
+          spatialY: point.spatialY ?? null,
+          spatialZ: point.spatialZ ?? null,
+        }));
+    }
+
     const filteredByAsset = selectedAsset
       ? source.filter((point) => {
           if (point.assetPositionRef && point.assetPositionRef === selectedAsset.label) {
@@ -234,19 +362,32 @@ export default function ThreeDViewPage() {
       title: point.title,
       status: point.status,
       criticality: point.criticality,
+      dueDate: point.dueDate ?? null,
       assetType: point.assetType ?? null,
       assetPositionRef: point.assetPositionRef ?? null,
       spatialX: point.spatialX ?? null,
       spatialY: point.spatialY ?? null,
       spatialZ: point.spatialZ ?? null,
     }));
-  }, [allPoints, selectedAsset, showImpactedOnly]);
+  }, [allProjectPoints, selectedAsset, showImpactedOnly, sceneMode, focusAssetType]);
 
-  const selectedPoint = (allPoints as any[]).find((point) => point.id === selectedPointId);
+  const selectedPoint = allProjectPoints.find((point) => point.id === selectedPointId);
 
   const handlePointClick = useCallback((id: string) => {
     setSelectedPointId((prev) => (prev === id ? null : id));
   }, []);
+
+  const handleAnchorClick = useCallback(
+    (anchorKey: string) => {
+      if (!mappingPointId || !canEdit) return;
+      set3dAnchor.mutate({
+        id: mappingPointId,
+        assetType: focusAssetType,
+        anchorKey,
+      });
+    },
+    [mappingPointId, canEdit, set3dAnchor, focusAssetType]
+  );
 
   async function onUploadModel(file: File) {
     try {
@@ -312,6 +453,34 @@ export default function ThreeDViewPage() {
         <span className="text-sm font-medium">Wind Farm 3D</span>
 
         <div className="ml-auto flex items-center gap-2">
+          <Select value={sceneMode} onValueChange={(value) => setSceneMode(value as SceneMode)}>
+            <SelectTrigger className="h-7 w-44 text-xs">
+              <SelectValue placeholder="View" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="representative">Representative View</SelectItem>
+              <SelectItem value="layout">Full Layout View</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {sceneMode === "representative" && (
+            <Select
+              value={focusAssetType}
+              onValueChange={(value) => {
+                setFocusAssetType(value as FocusedAssetType);
+                setMappingPointId(null);
+              }}
+            >
+              <SelectTrigger className="h-7 w-32 text-xs">
+                <SelectValue placeholder="Asset" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="turbine">Turbine</SelectItem>
+                <SelectItem value="oss">OSS</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
           <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value ?? "all")}>
             <SelectTrigger className="h-7 w-36 text-xs">
               <SelectValue placeholder="All statuses" />
@@ -347,56 +516,62 @@ export default function ThreeDViewPage() {
             </SelectContent>
           </Select>
 
-          <Button
-            variant={showImpactedOnly ? "default" : "outline"}
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setShowImpactedOnly((value) => !value)}
-          >
-            Impacted Only
-          </Button>
+          {sceneMode === "layout" && (
+            <>
+              <Button
+                variant={showImpactedOnly ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setShowImpactedOnly((value) => !value)}
+              >
+                Impacted Only
+              </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setShowAssetTable((value) => !value)}
-          >
-            <LayoutGridIcon className="mr-1 h-3.5 w-3.5" />
-            Layout
-          </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setShowAssetTable((value) => !value)}
+              >
+                <LayoutGridIcon className="mr-1 h-3.5 w-3.5" />
+                Layout
+              </Button>
 
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs"
-            onClick={() => setAddAssetOpen(true)}
-          >
-            <PlusIcon className="mr-1 h-3.5 w-3.5" />
-            Add Asset
-          </Button>
+              {canEdit && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => setAddAssetOpen(true)}
+                >
+                  <PlusIcon className="mr-1 h-3.5 w-3.5" />
+                  Add Asset
+                </Button>
+              )}
 
-          {featureFlags.threeDModelRegistry && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              onClick={() => setUploadModelOpen(true)}
-            >
-              <UploadCloudIcon className="mr-1 h-3.5 w-3.5" />
-              Upload Model
-            </Button>
-          )}
+              {featureFlags.threeDModelRegistry && canEdit && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => setUploadModelOpen(true)}
+                >
+                  <UploadCloudIcon className="mr-1 h-3.5 w-3.5" />
+                  Upload Model
+                </Button>
+              )}
 
-          {assets.length === 0 && (
-            <Button
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => seedDemo.mutate({ projectId })}
-              disabled={seedDemo.isPending}
-            >
-              {seedDemo.isPending ? "Loading..." : "Use Demo Layout"}
-            </Button>
+              {assets.length === 0 && canEdit && (
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => seedDemo.mutate({ projectId })}
+                  disabled={seedDemo.isPending}
+                >
+                  {seedDemo.isPending ? "Loading..." : "Use Demo Layout"}
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -412,6 +587,12 @@ export default function ThreeDViewPage() {
             filterCriticality={
               filterCriticality !== "all" ? filterCriticality : null
             }
+            sceneMode={sceneMode}
+            focusAssetType={focusAssetType}
+            anchorCatalog={ASSET_ANCHOR_CATALOG[focusAssetType]}
+            representativeModelUrl={representativeModelUrl}
+            mappingTargetPointId={mappingPointId}
+            onAnchorClick={handleAnchorClick}
           />
 
           <div className="absolute bottom-4 left-4 space-y-1 rounded-lg bg-black/70 px-3 py-2 text-xs text-white">
@@ -431,12 +612,22 @@ export default function ThreeDViewPage() {
               </div>
             ))}
             <p className="mt-1.5 text-[10px] text-gray-300">
-              {markers.length} points shown{selectedAsset ? ` for ${selectedAsset.label}` : ""}
+              {markers.length} points shown
+              {sceneMode === "representative"
+                ? ` for ${focusAssetType === "turbine" ? "Turbine" : "OSS"}`
+                : selectedAsset
+                  ? ` for ${selectedAsset.label}`
+                  : ""}
             </p>
+            {mappingPointId && (
+              <p className="mt-1.5 text-[10px] text-amber-300">
+                Select an anchor in the scene to map the selected topic.
+              </p>
+            )}
           </div>
 
           {selectedPoint && (
-            <div className="absolute right-4 top-4 w-72 rounded-lg border bg-white p-4 shadow-xl">
+            <div className="absolute right-4 top-4 w-80 rounded-lg border bg-white p-4 shadow-xl">
               <div className="mb-2 flex items-start justify-between gap-2">
                 <p className="font-mono text-xs text-muted-foreground">{selectedPoint.code}</p>
                 <button
@@ -451,10 +642,16 @@ export default function ThreeDViewPage() {
                 {String(selectedPoint.status).replace(/_/g, " ")} · {selectedPoint.criticality}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                {selectedPoint.assetPositionRef
-                  ? `Asset Ref: ${selectedPoint.assetPositionRef}`
-                  : "No linked asset reference"}
+                {selectedPoint.assetType && selectedPoint.assetPositionRef
+                  ? `${selectedPoint.assetType.toUpperCase()} · ${getAnchorLabel(
+                      selectedPoint.assetType,
+                      selectedPoint.assetPositionRef
+                    ) ?? selectedPoint.assetPositionRef}`
+                  : "Unmapped topic"}
               </p>
+              {selectedPoint.dueDate && (
+                <p className="mt-1 text-xs text-muted-foreground">Due: {selectedPoint.dueDate}</p>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -477,7 +674,97 @@ export default function ThreeDViewPage() {
           )}
         </div>
 
-        {showAssetTable && (
+        {sceneMode === "representative" && (
+          <div className="w-96 overflow-y-auto border-l bg-background">
+            <div className="border-b p-4 space-y-2">
+              <p className="text-sm font-semibold">Topic Mapping</p>
+              <p className="text-xs text-muted-foreground">
+                Map interface topics to {focusAssetType === "turbine" ? "turbine" : "OSS"} anchors.
+              </p>
+              <Input
+                placeholder="Search unmapped topics"
+                value={mappingSearch}
+                onChange={(event) => setMappingSearch(event.target.value)}
+                className="h-8 text-xs"
+              />
+              {mappingError && <p className="text-xs text-red-600">{mappingError}</p>}
+              {!canEdit && (
+                <p className="text-xs text-muted-foreground">
+                  Read-only: viewer role cannot change mappings.
+                </p>
+              )}
+            </div>
+
+            <div className="border-b p-4">
+              <p className="text-xs font-medium uppercase text-muted-foreground">Mapped Topics</p>
+              <div className="mt-2 space-y-2">
+                {mappedPointsForFocus.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No mapped topics yet.</p>
+                )}
+                {mappedPointsForFocus.map((point) => (
+                  <div key={point.id} className="rounded border px-2.5 py-2">
+                    <button
+                      className="w-full text-left"
+                      onClick={() => setSelectedPointId(point.id)}
+                    >
+                      <p className="font-mono text-[10px] text-muted-foreground">{point.code}</p>
+                      <p className="text-xs font-medium line-clamp-2">{point.title}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {getAnchorLabel(focusAssetType, point.assetPositionRef) ?? point.assetPositionRef}
+                      </p>
+                    </button>
+                    {canEdit && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="mt-1 h-6 px-2 text-[11px]"
+                        onClick={() => clear3dAnchor.mutate({ id: point.id })}
+                        disabled={clear3dAnchor.isPending}
+                      >
+                        <UnlinkIcon className="mr-1 h-3 w-3" />
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4">
+              <p className="text-xs font-medium uppercase text-muted-foreground">Unmapped Topics</p>
+              <div className="mt-2 space-y-2">
+                {unmappedPointsForFocus.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No unmapped topics.</p>
+                )}
+                {unmappedPointsForFocus.map((point) => (
+                  <div key={point.id} className="rounded border px-2.5 py-2">
+                    <button className="w-full text-left" onClick={() => setSelectedPointId(point.id)}>
+                      <p className="font-mono text-[10px] text-muted-foreground">{point.code}</p>
+                      <p className="text-xs font-medium line-clamp-2">{point.title}</p>
+                    </button>
+                    {canEdit && (
+                      <Button
+                        size="sm"
+                        variant={mappingPointId === point.id ? "default" : "outline"}
+                        className="mt-1 h-6 px-2 text-[11px]"
+                        onClick={() => {
+                          setMappingPointId(point.id);
+                          setSelectedPointId(point.id);
+                        }}
+                        disabled={set3dAnchor.isPending}
+                      >
+                        <LinkIcon className="mr-1 h-3 w-3" />
+                        {mappingPointId === point.id ? "Select Anchor..." : "Map"}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {sceneMode === "layout" && showAssetTable && (
           <div className="w-80 overflow-y-auto border-l bg-background">
             <div className="border-b p-4">
               <p className="text-sm font-semibold">Asset Layout</p>
@@ -516,17 +803,19 @@ export default function ThreeDViewPage() {
                           {asset.assetType.replace(/_/g, " ")} · ({asset.positionX}, {asset.positionZ})
                         </p>
                       </button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteAsset.mutate({ id: asset.id })}
-                      >
-                        <Trash2Icon className="h-3 w-3" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => deleteAsset.mutate({ id: asset.id })}
+                        >
+                          <Trash2Icon className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
 
-                    {featureFlags.threeDModelRegistry && (
+                    {featureFlags.threeDModelRegistry && canEdit && (
                       <div className="space-y-1">
                         <Label className="text-[10px] text-muted-foreground">Model</Label>
                         <Select
@@ -683,7 +972,7 @@ export default function ThreeDViewPage() {
               <Input
                 value={uploadTag}
                 onChange={(event) => setUploadTag(event.target.value)}
-                placeholder="WTG"
+                placeholder="generic"
               />
             </div>
 

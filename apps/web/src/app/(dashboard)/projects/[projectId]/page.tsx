@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
+import { ProjectSetupWizard } from "@/components/wizards/project-setup-wizard";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,6 +41,7 @@ export default function ProjectOverviewPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const trpc = useTRPC();
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
 
   const { data: project, isLoading } = useQuery(
     trpc.project.getById.queryOptions({ id: projectId })
@@ -147,9 +151,14 @@ export default function ProjectOverviewPage() {
           </CardHeader>
           <CardContent>
             {project.workPackages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No work packages yet. Go to Settings → Work Packages.
-              </p>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  No work packages yet. Go to Settings → Work Packages.
+                </p>
+                <Button size="sm" onClick={() => setShowSetupWizard(true)}>
+                  Run Setup Wizard
+                </Button>
+              </div>
             ) : (
               <div className="space-y-1.5">
                 {project.workPackages.map((wp) => (
@@ -201,6 +210,12 @@ export default function ProjectOverviewPage() {
           </CardContent>
         </Card>
       </div>
+
+      <ProjectSetupWizard
+        projectId={projectId}
+        open={showSetupWizard}
+        onOpenChange={setShowSetupWizard}
+      />
     </div>
   );
 }

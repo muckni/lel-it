@@ -32,13 +32,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -48,7 +41,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { InterfacePointForm, type InterfacePointFormValues } from "@/components/forms/interface-point-form";
+import { InterfacePointWizard } from "@/components/wizards/interface-point-wizard";
 import { PointStatusBadge, CriticalityBadge } from "@/components/status-badge";
 import { ImportPointsDialog } from "@/components/import-points-dialog";
 import { PlusIcon, ArrowUpDownIcon, DownloadIcon, UploadIcon } from "lucide-react";
@@ -79,8 +72,8 @@ export default function AgreementDetailPage() {
   const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -92,19 +85,6 @@ export default function AgreementDetailPage() {
 
   const { data: points = [] } = useQuery(
     trpc.interfacePoint.list.queryOptions({ agreementId })
-  );
-
-  const createMutation = useMutation(
-    trpc.interfacePoint.create.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries(trpc.interfacePoint.list.queryOptions({ agreementId }));
-        setOpen(false);
-        setCreateError(null);
-      },
-      onError: (error) => {
-        setCreateError(error.message);
-      },
-    })
   );
 
   const updateMutation = useMutation(
@@ -237,15 +217,6 @@ export default function AgreementDetailPage() {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  function handleCreate(values: InterfacePointFormValues) {
-    createMutation.mutate({
-      agreementId,
-      ...values,
-      dueDate: values.dueDate || undefined,
-      description: values.description || undefined,
-    });
-  }
-
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
   if (!agreement) return <div className="p-6 text-sm text-destructive">Agreement not found.</div>;
 
@@ -288,24 +259,10 @@ export default function AgreementDetailPage() {
             <Button variant="outline" onClick={() => setImportOpen(true)}>
               <UploadIcon className="h-4 w-4 mr-1" /> Import
             </Button>
-            <Dialog
-              open={open}
-              onOpenChange={(next) => {
-                setOpen(next);
-                if (!next) setCreateError(null);
-              }}
-            >
-              <DialogTrigger render={<Button><PlusIcon className="h-4 w-4 mr-1" />New Interface Point</Button>} />
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>New Interface Point</DialogTitle>
-                </DialogHeader>
-                <InterfacePointForm onSubmit={handleCreate} isLoading={createMutation.isPending} />
-                {createError && (
-                  <p className="text-xs text-destructive">{createError}</p>
-                )}
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => setWizardOpen(true)}>
+              <PlusIcon className="h-4 w-4 mr-1" />
+              New Interface Point
+            </Button>
           </div>
         </div>
 
@@ -402,6 +359,12 @@ export default function AgreementDetailPage() {
         open={importOpen}
         onOpenChange={setImportOpen}
         onSuccess={() => queryClient.invalidateQueries(trpc.interfacePoint.list.queryOptions({ agreementId }))}
+      />
+
+      <InterfacePointWizard
+        agreementId={agreementId}
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
       />
     </>
   );

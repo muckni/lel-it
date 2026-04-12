@@ -37,7 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PointStatusBadge, CriticalityBadge } from "@/components/status-badge";
 import { PlusIcon, Trash2Icon, ExternalLinkIcon, CheckCircle2Icon, ClockIcon, MessageSquareIcon, ArrowRightIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { DELIVERABLE_STATUSES, POINT_STATUSES, QUERY_PRIORITIES } from "@owit/shared";
+import { DELIVERABLE_STATUSES, POINT_STATUSES, SCOPE_ALLOCATION_PHASES } from "@owit/shared";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -45,6 +45,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useProjectRole } from "@/hooks/use-project-role";
 import { EntityAttachments } from "@/components/attachments/entity-attachments";
 import { DeadlineBadge, getDeadlineRowClassName } from "@/components/deadlines/deadline-badge";
+import { TquWizard } from "@/components/wizards/tqu-wizard";
 
 const deliverableSchema = z.object({
   title: z.string().min(1).max(255),
@@ -77,16 +78,6 @@ const iqStatusColors: Record<string, string> = {
   rejected: "bg-red-100 text-red-800",
   closed: "bg-gray-100 text-gray-600",
 };
-
-const iqSchema = z.object({
-  raisedByPackageId: z.string().uuid("Select package"),
-  assignedToPackageId: z.string().uuid("Select package"),
-  subject: z.string().min(1).max(255),
-  description: z.string().optional(),
-  priority: z.enum(["urgent", "high", "medium", "low"]),
-  dueDate: z.string().optional(),
-});
-type IQFormValues = z.infer<typeof iqSchema>;
 
 export default function PointDetailPage() {
   const params = useParams();
@@ -140,18 +131,7 @@ export default function PointDetailPage() {
     trpc.interfaceQuery.listByPoint.queryOptions({ interfacePointId: pointId })
   );
 
-  const createIQ = useMutation(
-    trpc.interfaceQuery.create.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries(trpc.interfaceQuery.listByPoint.queryOptions({ interfacePointId: pointId }));
-        setIqOpen(false);
-        iqForm.reset();
-      },
-    })
-  );
-
   const form = useForm<DeliverableFormValues>({ resolver: zodResolver(deliverableSchema) });
-  const iqForm = useForm<IQFormValues>({ resolver: zodResolver(iqSchema), defaultValues: { priority: "medium" } });
 
   function handleCreateDeliverable(values: DeliverableFormValues) {
     createDeliverable.mutate({
@@ -162,19 +142,62 @@ export default function PointDetailPage() {
     form.reset();
   }
 
-  function handleCreateIQ(values: IQFormValues) {
-    createIQ.mutate({
-      interfacePointId: pointId,
-      ...values,
-      dueDate: values.dueDate || undefined,
-      description: values.description || undefined,
-    });
-  }
-
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
   if (!point) return <div className="p-6 text-sm text-destructive">Interface point not found.</div>;
 
   const deliverables = point.deliverables ?? [];
+  const packageById = new Map([
+    [point.agreement.register.packageA.id, point.agreement.register.packageA.code],
+    [point.agreement.register.packageB.id, point.agreement.register.packageB.code],
+  ]);
+
+  const scopeRows = [
+    {
+      key: "scopeSpec",
+      packageId: point.scopeSpecPackageId,
+      mode: point.scopeSpecMode,
+    },
+    {
+      key: "scopeDes",
+      packageId: point.scopeDesPackageId,
+      mode: point.scopeDesMode,
+    },
+    {
+      key: "scopeSup",
+      packageId: point.scopeSupPackageId,
+      mode: point.scopeSupMode,
+    },
+    {
+      key: "scopeOnA",
+      packageId: point.scopeOnAPackageId,
+      mode: point.scopeOnAMode,
+    },
+    {
+      key: "scopeOnT",
+      packageId: point.scopeOnTPackageId,
+      mode: point.scopeOnTMode,
+    },
+    {
+      key: "scopeOnC",
+      packageId: point.scopeOnCPackageId,
+      mode: point.scopeOnCMode,
+    },
+    {
+      key: "scopeOffT",
+      packageId: point.scopeOffTPackageId,
+      mode: point.scopeOffTMode,
+    },
+    {
+      key: "scopeOffI",
+      packageId: point.scopeOffIPackageId,
+      mode: point.scopeOffIMode,
+    },
+    {
+      key: "scopeOffC",
+      packageId: point.scopeOffCPackageId,
+      mode: point.scopeOffCMode,
+    },
+  ] as const;
 
   return (
     <>
@@ -285,6 +308,32 @@ export default function PointDetailPage() {
               entityId={pointId}
               canManage={canEdit}
             />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Scope Allocation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {SCOPE_ALLOCATION_PHASES.map((phase) => {
+                const row = scopeRows.find((item) => item.key === phase.key);
+                const value = row?.mode === "multiple"
+                  ? "multiple"
+                  : row?.mode === "not_relevant"
+                    ? "n.r."
+                    : row?.packageId
+                      ? packageById.get(row.packageId) ?? row.packageId
+                      : "n.r.";
+                return (
+                  <div key={phase.key} className="rounded border px-3 py-2">
+                    <p className="text-xs font-medium">{phase.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{value}</p>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
 
@@ -456,7 +505,7 @@ export default function PointDetailPage() {
                 )}
               </CardTitle>
               <Button size="sm" variant="outline" onClick={() => setIqOpen(true)}>
-                <PlusIcon className="h-3.5 w-3.5 mr-1" /> Raise IQ
+                <PlusIcon className="h-3.5 w-3.5 mr-1" /> Create TQU / DIR
               </Button>
             </div>
           </CardHeader>
@@ -498,71 +547,13 @@ export default function PointDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Raise IQ Dialog */}
-        <Dialog open={iqOpen} onOpenChange={setIqOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Raise Interface Query</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={iqForm.handleSubmit(handleCreateIQ)} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Subject *</Label>
-                <Input placeholder="Clarification on bolt pattern spec" {...iqForm.register("subject")} />
-                {iqForm.formState.errors.subject && (
-                  <p className="text-xs text-destructive">{iqForm.formState.errors.subject.message}</p>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Raised By *</Label>
-                  <Select onValueChange={(v) => iqForm.setValue("raisedByPackageId", v as string)}>
-                    <SelectTrigger className="text-xs"><SelectValue placeholder="Package…" /></SelectTrigger>
-                    <SelectContent>
-                      {workPackages.map((wp) => (
-                        <SelectItem key={wp.id} value={wp.id} className="text-xs">{wp.code} – {wp.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Assigned To *</Label>
-                  <Select onValueChange={(v) => iqForm.setValue("assignedToPackageId", v as string)}>
-                    <SelectTrigger className="text-xs"><SelectValue placeholder="Package…" /></SelectTrigger>
-                    <SelectContent>
-                      {workPackages.map((wp) => (
-                        <SelectItem key={wp.id} value={wp.id} className="text-xs">{wp.code} – {wp.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Priority</Label>
-                  <Select defaultValue="medium" onValueChange={(v) => iqForm.setValue("priority", (v ?? "medium") as typeof QUERY_PRIORITIES[number])}>
-                    <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {QUERY_PRIORITIES.map((p) => (
-                        <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Due Date</Label>
-                  <Input type="date" {...iqForm.register("dueDate")} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea rows={2} {...iqForm.register("description")} />
-              </div>
-              <Button type="submit" disabled={createIQ.isPending}>
-                {createIQ.isPending ? "Raising…" : "Raise IQ"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <TquWizard
+          projectId={projectId}
+          open={iqOpen}
+          onOpenChange={setIqOpen}
+          registerId={registerId}
+          initialInterfacePointId={pointId}
+        />
       </div>
     </>
   );
