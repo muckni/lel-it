@@ -33,6 +33,7 @@ export function InterfacePointMarkers({
 }: Props) {
   const positionedPoints = points
     .map((point, i) => {
+      // Representative mode: use anchor-based positioning
       if (
         sceneMode === "representative" &&
         point.assetPositionRef &&
@@ -41,6 +42,7 @@ export function InterfacePointMarkers({
         return { point, position: anchorWorldPositions[point.assetPositionRef] };
       }
 
+      // Layout mode: use spatial coordinates if available, otherwise grid layout
       const x = point.spatialX ?? (i % 10) * 3 - 15;
       const y = point.spatialY ?? 2;
       const z = point.spatialZ ?? Math.floor(i / 10) * 3 - 15;
