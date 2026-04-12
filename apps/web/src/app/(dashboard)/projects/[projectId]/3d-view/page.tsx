@@ -171,6 +171,13 @@ export default function ThreeDViewPage() {
     cameraControlRef.current?.setPreset(preset);
   }
 
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraDebounceRef.current) clearTimeout(cameraDebounceRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     const currentMode = searchParams.get("mode");
     const currentAsset = searchParams.get("asset");
