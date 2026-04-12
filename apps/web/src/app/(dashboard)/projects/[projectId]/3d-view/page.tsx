@@ -38,6 +38,7 @@ import {
   CRITICALITIES,
   POINT_STATUSES,
   ASSET_ANCHOR_CATALOG,
+  FOCUSED_ASSET_TYPES,
   type FocusedAssetType,
   getAnchorLabel,
 } from "@owit/shared";
@@ -102,7 +103,7 @@ export default function ThreeDViewPage() {
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const { canEdit } = useProjectRole(projectId);
+  const { canEdit, isAdmin } = useProjectRole(projectId);
 
   const defaultSceneMode: SceneMode =
     featureFlags.threeDRepresentativeMode && searchParams.get("mode") !== "layout"
@@ -140,6 +141,14 @@ export default function ThreeDViewPage() {
   const [mappingPointId, setMappingPointId] = useState<string | null>(null);
   const [mappingSearch, setMappingSearch] = useState("");
   const [mappingError, setMappingError] = useState<string | null>(null);
+
+  const [addAnchorKey, setAddAnchorKey] = useState("");
+  const [addAnchorLabel, setAddAnchorLabel] = useState("");
+  const [addAnchorAssetType, setAddAnchorAssetType] = useState<string>("turbine");
+  const [addAnchorX, setAddAnchorX] = useState("0");
+  const [addAnchorY, setAddAnchorY] = useState("0");
+  const [addAnchorZ, setAddAnchorZ] = useState("0");
+  const [addAnchorError, setAddAnchorError] = useState<string | null>(null);
 
   // Camera state from URL params
   const cameraControlRef = useRef<CameraControl | null>(null);
@@ -319,6 +328,37 @@ export default function ThreeDViewPage() {
         setMappingError(null);
       },
       onError: (error) => setMappingError(error.message),
+    })
+  );
+
+  const { data: mergedAnchors = [] } = useQuery(
+    trpc.anchorCatalog.list.queryOptions({ projectId })
+  );
+
+  const createAnchor = useMutation(
+    trpc.anchorCatalog.create.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(
+          trpc.anchorCatalog.list.queryOptions({ projectId })
+        );
+        setAddAnchorKey("");
+        setAddAnchorLabel("");
+        setAddAnchorX("0");
+        setAddAnchorY("0");
+        setAddAnchorZ("0");
+        setAddAnchorError(null);
+      },
+      onError: (error) => setAddAnchorError(error.message),
+    })
+  );
+
+  const deleteAnchor = useMutation(
+    trpc.anchorCatalog.delete.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(
+          trpc.anchorCatalog.list.queryOptions({ projectId })
+        );
+      },
     })
   );
 
@@ -722,7 +762,7 @@ export default function ThreeDViewPage() {
             }
             sceneMode={sceneMode}
             focusAssetType={focusAssetType}
-            anchorCatalog={ASSET_ANCHOR_CATALOG[focusAssetType]}
+            anchorCatalog={mergedAnchors.filter((a) => a.assetType === focusAssetType)}
             representativeModelUrl={representativeModelUrl}
             mappingTargetPointId={mappingPointId}
             onAnchorClick={handleAnchorClick}
@@ -897,6 +937,113 @@ export default function ThreeDViewPage() {
                 ))}
               </div>
             </div>
+
+            {/* Custom Anchors section — admin only */}
+            {isAdmin && (
+              <div className="border-t p-4 space-y-3">
+                <p className="text-xs font-medium uppercase text-muted-foreground">Custom Anchors</p>
+
+                {/* List custom anchors with delete */}
+                <div className="space-y-1">
+                  {mergedAnchors.filter((a) => a.isCustom && a.assetType === focusAssetType).map((a) => (
+                    <div key={a.key} className="flex items-center justify-between rounded border px-2 py-1">
+                      <span className="text-xs">{a.label} <span className="text-muted-foreground">({a.key})</span></span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-1.5 text-[11px] text-destructive hover:text-destructive"
+                        onClick={() => {
+                          if (a.id) deleteAnchor.mutate({ id: a.id, projectId });
+                        }}
+                        disabled={deleteAnchor.isPending || !a.id}
+                      >
+                        <Trash2Icon className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  {mergedAnchors.filter((a) => a.isCustom && a.assetType === focusAssetType).length === 0 && (
+                    <p className="text-xs text-muted-foreground">No custom anchors yet.</p>
+                  )}
+                </div>
+
+                {/* Add Anchor form */}
+                <div className="space-y-2 rounded border p-2">
+                  <p className="text-[11px] font-medium">Add Anchor</p>
+                  {addAnchorError && <p className="text-[11px] text-red-600">{addAnchorError}</p>}
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Asset Type</Label>
+                    <select
+                      value={addAnchorAssetType}
+                      onChange={(e) => setAddAnchorAssetType(e.target.value)}
+                      className="h-7 w-full rounded border bg-background px-2 text-xs"
+                    >
+                      {FOCUSED_ASSET_TYPES.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Key (unique, no spaces)</Label>
+                    <Input
+                      value={addAnchorKey}
+                      onChange={(e) => setAddAnchorKey(e.target.value)}
+                      className="h-7 text-xs"
+                      placeholder="e.g. custom_bolt_flange"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Label</Label>
+                    <Input
+                      value={addAnchorLabel}
+                      onChange={(e) => setAddAnchorLabel(e.target.value)}
+                      className="h-7 text-xs"
+                      placeholder="e.g. Bolt Flange"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">X</Label>
+                      <Input value={addAnchorX} onChange={(e) => setAddAnchorX(e.target.value)} className="h-7 text-xs" type="number" step="0.1" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Y</Label>
+                      <Input value={addAnchorY} onChange={(e) => setAddAnchorY(e.target.value)} className="h-7 text-xs" type="number" step="0.1" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Z</Label>
+                      <Input value={addAnchorZ} onChange={(e) => setAddAnchorZ(e.target.value)} className="h-7 text-xs" type="number" step="0.1" />
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-7 w-full text-xs"
+                    disabled={createAnchor.isPending || !addAnchorKey.trim() || !addAnchorLabel.trim()}
+                    onClick={() => {
+                      setAddAnchorError(null);
+                      const x = parseFloat(addAnchorX);
+                      const y = parseFloat(addAnchorY);
+                      const z = parseFloat(addAnchorZ);
+                      if (isNaN(x) || isNaN(y) || isNaN(z)) {
+                        setAddAnchorError("Position values must be numbers.");
+                        return;
+                      }
+                      createAnchor.mutate({
+                        projectId,
+                        assetType: addAnchorAssetType,
+                        key: addAnchorKey.trim(),
+                        label: addAnchorLabel.trim(),
+                        positionX: x,
+                        positionY: y,
+                        positionZ: z,
+                      });
+                    }}
+                  >
+                    <PlusIcon className="mr-1 h-3 w-3" />
+                    {createAnchor.isPending ? "Adding..." : "Add Anchor"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -1184,6 +1184,23 @@ export const mocEntityLinks = pgTable(
   ]
 );
 
+export const customAnchorDefinitions = pgTable("custom_anchor_definitions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  assetType: text("asset_type").notNull(),
+  key: text("key").notNull(),
+  label: text("label").notNull(),
+  positionX: real("position_x").notNull(),
+  positionY: real("position_y").notNull(),
+  positionZ: real("position_z").notNull(),
+  normalX: real("normal_x"),
+  normalY: real("normal_y"),
+  normalZ: real("normal_z"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("custom_anchor_project_asset_key_idx").on(table.projectId, table.assetType, table.key),
+]);
+
 // ─── Relations ───────────────────────────────────────────────────────────────
 
 export const portfoliosRelations = relations(portfolios, ({ many }) => ({

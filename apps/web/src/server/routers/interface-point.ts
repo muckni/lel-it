@@ -5,6 +5,7 @@ import {
   interfacePoints,
   interfaceAgreements,
   interfaceRegisters,
+  customAnchorDefinitions,
 } from "@owit/db";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { assertMember, requireRole } from "@/server/lib/rbac";
@@ -374,8 +375,20 @@ export const interfacePointRouter = createTRPCRouter({
       const projectId = await projectIdForPoint(input.id);
       await requireRole(ctx.user.id, projectId, "editor");
 
-      if (!isValidAnchorForAssetType(input.assetType, input.anchorKey)) {
-        throw new Error("Invalid anchor for selected asset type");
+      const isDefaultValid = isValidAnchorForAssetType(input.assetType, input.anchorKey);
+      if (!isDefaultValid) {
+        // Check custom anchors for this project + assetType
+        const customAnchors = await db.query.customAnchorDefinitions.findMany({
+          where: and(
+            eq(customAnchorDefinitions.projectId, projectId),
+            eq(customAnchorDefinitions.assetType, input.assetType)
+          ),
+          columns: { key: true },
+        });
+        const isCustomValid = customAnchors.some((a) => a.key === input.anchorKey);
+        if (!isCustomValid) {
+          throw new Error("Invalid anchor for selected asset type");
+        }
       }
 
       const [point] = await db

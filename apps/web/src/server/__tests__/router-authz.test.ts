@@ -50,6 +50,9 @@ vi.mock("@owit/db", () => ({
         findMany: vi.fn().mockResolvedValue([]),
         findFirst: vi.fn().mockResolvedValue({ projectId: "00000000-0000-4000-8000-000000000001" }),
       },
+      customAnchorDefinitions: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     },
     select: vi.fn().mockReturnThis(),
     from: vi.fn().mockReturnThis(),
@@ -72,6 +75,7 @@ vi.mock("@owit/db", () => ({
   assetPlacements: {},
   cableRoutes: {},
   memberWorkPackages: {},
+  customAnchorDefinitions: {},
 }));
 
 vi.mock("@/server/lib/project-id", () => ({

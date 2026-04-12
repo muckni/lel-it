@@ -42,6 +42,37 @@ export const ASSET_ANCHOR_CATALOG = {
 type Catalog = typeof ASSET_ANCHOR_CATALOG;
 export type AssetAnchorKey = Catalog[keyof Catalog][number]["key"];
 
+export type AnchorDefinition = {
+  id?: string;
+  key: string;
+  label: string;
+  assetType: string;
+  position: [number, number, number];
+  normal?: [number, number, number];
+  isCustom: boolean;
+};
+
+export function mergeAnchors(
+  defaults: typeof ASSET_ANCHOR_CATALOG,
+  custom: Array<{ id: string; key: string; label: string; assetType: string; positionX: number; positionY: number; positionZ: number; normalX?: number | null; normalY?: number | null; normalZ?: number | null }>
+): AnchorDefinition[] {
+  const result: AnchorDefinition[] = Object.entries(defaults).flatMap(([assetType, anchors]) =>
+    anchors.map(a => ({ key: a.key, label: a.label, assetType, position: a.position as [number, number, number], isCustom: false }))
+  );
+  for (const c of custom) {
+    result.push({
+      id: c.id,
+      key: c.key,
+      label: c.label,
+      assetType: c.assetType,
+      position: [c.positionX, c.positionY, c.positionZ],
+      normal: c.normalX != null && c.normalY != null && c.normalZ != null ? [c.normalX, c.normalY, c.normalZ] : undefined,
+      isCustom: true,
+    });
+  }
+  return result;
+}
+
 export function isValidAnchorForAssetType(
   assetType: FocusedAssetType,
   anchorKey: string
