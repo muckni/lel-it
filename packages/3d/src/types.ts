@@ -66,6 +66,8 @@ export interface WindFarmSceneProps {
   cameraControlRef?: React.MutableRefObject<CameraControl | null>;
   /** When true, enables two-click distance measurement mode */
   measurementActive?: boolean;
+  /** When true, renders a performance stats overlay (dev only) */
+  showStats?: boolean;
 }
 
 export interface CameraControl {

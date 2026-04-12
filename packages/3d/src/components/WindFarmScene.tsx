@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls, Grid, Environment } from "@react-three/drei";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { OrbitControls, Grid, Environment, Stats } from "@react-three/drei";
+import * as THREE from "three";
 import { ASSET_ANCHOR_CATALOG } from "@owit/shared";
 import { TurbineAsset } from "./assets/TurbineAsset";
 import { FoundationAsset } from "./assets/FoundationAsset";
@@ -28,27 +29,80 @@ function SeaPlane() {
   );
 }
 
+/** Compute the LOD tier from distance (same thresholds as in the spec). */
+function lodTierFromDistance(distance: number): number {
+  if (distance > 500) return 4;
+  if (distance > 200) return 3;
+  if (distance > 100) return 2;
+  return 0;
+}
+
+/**
+ * AssetRenderer — layout mode.
+ * For GLTF assets it tracks camera distance per frame and switches LOD tiers
+ * without causing a re-render on every frame. Procedural assets are unaffected.
+ */
 function AssetRenderer({
   assets,
 }: {
   assets: WindFarmSceneProps["assets"];
 }) {
+  const { camera } = useThree();
+
+  // Separate GLTF assets so we can maintain LOD state for them
+  const gltfAssets = assets.filter((a) => !!a.modelUrl);
+  const proceduralAssets = assets.filter((a) => !a.modelUrl);
+
+  // Per-asset LOD levels as React state (triggers re-render only on tier change)
+  const [assetLodLevels, setAssetLodLevels] = useState<Record<string, number>>(
+    () => Object.fromEntries(gltfAssets.map((a) => [a.id, a.lodLevel ?? 0]))
+  );
+
+  // Ref to track current tiers without causing re-renders on every frame
+  const lodTierRef = useRef<Record<string, number>>(
+    Object.fromEntries(gltfAssets.map((a) => [a.id, a.lodLevel ?? 0]))
+  );
+
+  // Scratch vector — allocate once outside the frame loop
+  const _assetPos = useRef(new THREE.Vector3());
+
+  useFrame(() => {
+    let anyChanged = false;
+    const nextTiers: Record<string, number> = { ...lodTierRef.current };
+
+    for (const asset of gltfAssets) {
+      _assetPos.current.set(asset.positionX, asset.positionY, asset.positionZ);
+      const dist = camera.position.distanceTo(_assetPos.current);
+      const newTier = lodTierFromDistance(dist);
+      if (nextTiers[asset.id] !== newTier) {
+        nextTiers[asset.id] = newTier;
+        anyChanged = true;
+      }
+    }
+
+    if (anyChanged) {
+      lodTierRef.current = nextTiers;
+      setAssetLodLevels({ ...nextTiers });
+    }
+  });
+
   return (
     <>
-      {assets.map((a) => {
+      {gltfAssets.map((a) => {
         const pos: [number, number, number] = [a.positionX, a.positionY, a.positionZ];
-        if (a.modelUrl) {
-          return (
-            <GltfAsset
-              key={a.id}
-              url={a.modelUrl}
-              position={pos}
-              rotationY={a.rotationY}
-              lodLevel={a.lodLevel ?? 0}
-            />
-          );
-        }
+        return (
+          <GltfAsset
+            key={a.id}
+            url={a.modelUrl!}
+            position={pos}
+            rotationY={a.rotationY}
+            lodLevel={assetLodLevels[a.id] ?? 0}
+          />
+        );
+      })}
 
+      {proceduralAssets.map((a) => {
+        const pos: [number, number, number] = [a.positionX, a.positionY, a.positionZ];
         switch (a.assetType) {
           case "turbine":
             return (
@@ -164,6 +218,7 @@ export function WindFarmScene({
   onOrbitEnd,
   cameraControlRef,
   measurementActive = false,
+  showStats = false,
 }: WindFarmSceneProps) {
   const orbitControlsRef = useRef<any>(null);
 
@@ -225,6 +280,9 @@ export function WindFarmScene({
       style={{ background: "#0f172a" }}
     >
       <Suspense fallback={null}>
+        {/* Performance stats overlay (dev only) */}
+        {showStats && <Stats />}
+
         {/* Lighting */}
         <ambientLight intensity={0.6} />
         <directionalLight

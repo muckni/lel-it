@@ -151,6 +151,7 @@ export default function ThreeDViewPage() {
   const [addAnchorZ, setAddAnchorZ] = useState("0");
   const [addAnchorError, setAddAnchorError] = useState<string | null>(null);
   const [measurementActive, setMeasurementActive] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   // Camera state from URL params
   const cameraControlRef = useRef<CameraControl | null>(null);
@@ -691,6 +692,18 @@ export default function ThreeDViewPage() {
                 Measure
               </Button>
 
+              {process.env.NODE_ENV === "development" && (
+                <Button
+                  variant={showStats ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setShowStats((value) => !value)}
+                  title="Toggle performance stats overlay"
+                >
+                  Stats
+                </Button>
+              )}
+
               <Button
                 variant={showImpactedOnly ? "default" : "outline"}
                 size="sm"
@@ -783,6 +796,7 @@ export default function ThreeDViewPage() {
             onOrbitEnd={handleOrbitEnd}
             cameraControlRef={cameraControlRef}
             measurementActive={measurementActive}
+            showStats={showStats}
           />
 
           {measurementActive && sceneMode === "layout" && (

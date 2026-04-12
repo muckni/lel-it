@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { Object3D } from "three";
@@ -12,6 +12,18 @@ interface Props {
 
 export function GltfAsset({ url, position, rotationY = 0, lodLevel = 0 }: Props) {
   const gltf = useGLTF(url);
+  const groupRef = useRef<THREE.Group>(null);
+
+  // Enable frustum culling explicitly on all meshes after load
+  useEffect(() => {
+    if (groupRef.current) {
+      groupRef.current.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.frustumCulled = true;
+        }
+      });
+    }
+  }, [url]); // re-run when model changes
 
   const renderedContent = useMemo(() => {
     if (lodLevel >= 3) {
@@ -41,7 +53,7 @@ export function GltfAsset({ url, position, rotationY = 0, lodLevel = 0 }: Props)
   }, [gltf.scene, lodLevel]);
 
   return (
-    <group position={position} rotation={[0, rotationY, 0]}>
+    <group ref={groupRef} position={position} rotation={[0, rotationY, 0]}>
       {renderedContent}
     </group>
   );
