@@ -41,6 +41,27 @@ export type PointStatus = (typeof POINT_STATUSES)[number];
 export const CRITICALITIES = ["critical", "major", "minor"] as const;
 export type Criticality = (typeof CRITICALITIES)[number];
 
+// Interface point scope allocation phases (IMP/ERQ matrix)
+export const SCOPE_ALLOCATION_PHASES = [
+  { key: "scopeSpec", label: "Spec", description: "Specification / requirements" },
+  { key: "scopeDes", label: "Des", description: "Design and engineering" },
+  { key: "scopeSup", label: "Sup", description: "Supply / provision / execution" },
+  { key: "scopeOnA", label: "On-A", description: "Onshore assembly" },
+  { key: "scopeOnT", label: "On-T", description: "Onshore transport / delivery" },
+  { key: "scopeOnC", label: "On-C", description: "Onshore commissioning and testing" },
+  { key: "scopeOffT", label: "Off-T", description: "Offshore transport to site" },
+  { key: "scopeOffI", label: "Off-I", description: "Offshore assembly / installation" },
+  { key: "scopeOffC", label: "Off-C", description: "Offshore commissioning and testing" },
+] as const;
+export type ScopeAllocationPhase = (typeof SCOPE_ALLOCATION_PHASES)[number]["key"];
+
+export const SCOPE_ALLOCATION_MODES = [
+  "package",
+  "not_relevant",
+  "multiple",
+] as const;
+export type ScopeAllocationMode = (typeof SCOPE_ALLOCATION_MODES)[number];
+
 // Interface query status
 export const QUERY_STATUSES = [
   "open",

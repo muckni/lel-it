@@ -50,6 +50,13 @@
       "when": 1775931000000,
       "tag": "0006_phase9b_interfaces_3d_registry",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775934070576,
+      "tag": "0007_organic_gamora",
+      "breakpoints": true
     }
   ]
 }

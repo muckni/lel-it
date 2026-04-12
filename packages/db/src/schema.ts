@@ -59,6 +59,12 @@ export const criticalityEnum = pgEnum("criticality", [
   "minor",
 ]);
 
+export const scopeAllocationModeEnum = pgEnum("scope_allocation_mode", [
+  "package",
+  "not_relevant",
+  "multiple",
+]);
+
 export const queryStatusEnum = pgEnum("query_status", [
   "open",
   "responded",
@@ -340,6 +346,24 @@ export const interfacePoints = pgTable(
     status: pointStatusEnum("status").notNull().default("open"),
     phase: projectPhaseEnum("phase"),
     dueDate: date("due_date"),
+    scopeSpecPackageId: uuid("scope_spec_package_id").references(() => workPackages.id),
+    scopeSpecMode: scopeAllocationModeEnum("scope_spec_mode").notNull().default("package"),
+    scopeDesPackageId: uuid("scope_des_package_id").references(() => workPackages.id),
+    scopeDesMode: scopeAllocationModeEnum("scope_des_mode").notNull().default("package"),
+    scopeSupPackageId: uuid("scope_sup_package_id").references(() => workPackages.id),
+    scopeSupMode: scopeAllocationModeEnum("scope_sup_mode").notNull().default("package"),
+    scopeOnAPackageId: uuid("scope_on_a_package_id").references(() => workPackages.id),
+    scopeOnAMode: scopeAllocationModeEnum("scope_on_a_mode").notNull().default("package"),
+    scopeOnTPackageId: uuid("scope_on_t_package_id").references(() => workPackages.id),
+    scopeOnTMode: scopeAllocationModeEnum("scope_on_t_mode").notNull().default("package"),
+    scopeOnCPackageId: uuid("scope_on_c_package_id").references(() => workPackages.id),
+    scopeOnCMode: scopeAllocationModeEnum("scope_on_c_mode").notNull().default("package"),
+    scopeOffTPackageId: uuid("scope_off_t_package_id").references(() => workPackages.id),
+    scopeOffTMode: scopeAllocationModeEnum("scope_off_t_mode").notNull().default("package"),
+    scopeOffIPackageId: uuid("scope_off_i_package_id").references(() => workPackages.id),
+    scopeOffIMode: scopeAllocationModeEnum("scope_off_i_mode").notNull().default("package"),
+    scopeOffCPackageId: uuid("scope_off_c_package_id").references(() => workPackages.id),
+    scopeOffCMode: scopeAllocationModeEnum("scope_off_c_mode").notNull().default("package"),
     assetType: assetTypeEnum("asset_type"),
     assetPositionRef: text("asset_position_ref"),
     spatialX: real("spatial_x"),
@@ -358,6 +382,15 @@ export const interfacePoints = pgTable(
       table.agreementId,
       table.status
     ),
+    index("interface_points_scope_spec_pkg_idx").on(table.scopeSpecPackageId),
+    index("interface_points_scope_des_pkg_idx").on(table.scopeDesPackageId),
+    index("interface_points_scope_sup_pkg_idx").on(table.scopeSupPackageId),
+    index("interface_points_scope_on_a_pkg_idx").on(table.scopeOnAPackageId),
+    index("interface_points_scope_on_t_pkg_idx").on(table.scopeOnTPackageId),
+    index("interface_points_scope_on_c_pkg_idx").on(table.scopeOnCPackageId),
+    index("interface_points_scope_off_t_pkg_idx").on(table.scopeOffTPackageId),
+    index("interface_points_scope_off_i_pkg_idx").on(table.scopeOffIPackageId),
+    index("interface_points_scope_off_c_pkg_idx").on(table.scopeOffCPackageId),
   ]
 );
 

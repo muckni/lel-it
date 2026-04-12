@@ -152,6 +152,22 @@ describe("interface-point mutations require editor+", () => {
     const caller = interfacePointRouter.createCaller(viewerCtx as any);
     await viewerForbids(() => caller.delete({ id: PT }));
   });
+
+  it("interfacePoint.set3dAnchor is blocked for viewer", async () => {
+    mockRequireRole.mockRejectedValue(FORBIDDEN);
+    const { interfacePointRouter } = await import("../routers/interface-point");
+    const caller = interfacePointRouter.createCaller(viewerCtx as any);
+    await viewerForbids(() =>
+      caller.set3dAnchor({ id: PT, assetType: "turbine", anchorKey: "tower_base" })
+    );
+  });
+
+  it("interfacePoint.clear3dAnchor is blocked for viewer", async () => {
+    mockRequireRole.mockRejectedValue(FORBIDDEN);
+    const { interfacePointRouter } = await import("../routers/interface-point");
+    const caller = interfacePointRouter.createCaller(viewerCtx as any);
+    await viewerForbids(() => caller.clear3dAnchor({ id: PT }));
+  });
 });
 
 describe("interface-query mutations require editor+", () => {
