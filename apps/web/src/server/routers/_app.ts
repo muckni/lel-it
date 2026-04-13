@@ -23,6 +23,7 @@ import { modelRegistryRouter } from "./model-registry";
 import { interfaceWorkspaceRouter } from "./interface-workspace";
 import { cableRouteRouter } from "./cable-route";
 import { anchorCatalogRouter } from "./anchor-catalog";
+import { lessonLearnedRouter } from "./lesson-learned";
 
 export const appRouter = createTRPCRouter({
   portfolio: portfolioRouter,
@@ -49,6 +50,7 @@ export const appRouter = createTRPCRouter({
   interfaceWorkspace: interfaceWorkspaceRouter,
   cableRoute: cableRouteRouter,
   anchorCatalog: anchorCatalogRouter,
+  lessonLearned: lessonLearnedRouter,
 });
 
 export type AppRouter = typeof appRouter;

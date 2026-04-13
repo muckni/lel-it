@@ -14,6 +14,7 @@ import {
   workPackages,
   assetPlacements,
   comments,
+  lessonsLearned,
 } from "@owit/db";
 import { eq } from "drizzle-orm";
 
@@ -97,4 +98,12 @@ export async function projectIdForComment(
   return parentType === "interface_point"
     ? projectIdForPoint(parentId)
     : projectIdForQuery(parentId);
+}
+
+export async function projectIdForLessonLearned(id: string): Promise<string> {
+  const row = await db.query.lessonsLearned.findFirst({
+    where: eq(lessonsLearned.id, id),
+    columns: { projectId: true },
+  });
+  return row?.projectId ?? notFound("Lesson learned");
 }
