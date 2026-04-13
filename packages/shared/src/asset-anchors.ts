@@ -16,17 +16,18 @@ export interface AssetAnchorDefinition {
   normal?: [number, number, number];
 }
 
+// Turbine anchors are in TurbineAsset local space (tower center at y=0, tower spans -9..9).
 const turbineAnchors = [
-  { key: "tower_base", label: "Tower Base", position: [0, 0.2, 0] as [number, number, number] },
-  { key: "transition_piece", label: "Transition Piece", position: [0, 2.5, 0] as [number, number, number] },
+  { key: "tower_base", label: "Tower Base", position: [0, -8.7, 0] as [number, number, number] },
+  { key: "transition_piece", label: "Transition Piece", position: [0, -9.5, 0] as [number, number, number] },
   { key: "tower_mid", label: "Tower Mid", position: [0, 6, 0] as [number, number, number] },
   { key: "yaw_system", label: "Yaw System", position: [0, 9.4, 0] as [number, number, number] },
-  { key: "nacelle", label: "Nacelle", position: [0.7, 10, 0] as [number, number, number] },
-  { key: "hub", label: "Hub", position: [0, 10, 0.8] as [number, number, number] },
-  { key: "blade_root_a", label: "Blade Root A", position: [0, 13, 0.8] as [number, number, number] },
-  { key: "blade_root_b", label: "Blade Root B", position: [2.6, 8.7, 0.8] as [number, number, number] },
-  { key: "blade_root_c", label: "Blade Root C", position: [-2.6, 8.7, 0.8] as [number, number, number] },
-  { key: "cable_entry", label: "Cable Entry", position: [0, 0.6, -0.5] as [number, number, number] },
+  { key: "nacelle", label: "Nacelle", position: [0.7, 9.3, 0] as [number, number, number] },
+  { key: "hub", label: "Hub", position: [0, 9.3, 0.85] as [number, number, number] },
+  { key: "blade_root_a", label: "Blade Root A", position: [0, 9.88, 0.86] as [number, number, number] },
+  { key: "blade_root_b", label: "Blade Root B", position: [0.5, 9.01, 0.86] as [number, number, number] },
+  { key: "blade_root_c", label: "Blade Root C", position: [-0.5, 9.01, 0.86] as [number, number, number] },
+  { key: "cable_entry", label: "Cable Entry", position: [0, -8.4, -0.5] as [number, number, number] },
 ] as const satisfies readonly AssetAnchorDefinition[];
 
 const ossAnchors = [
