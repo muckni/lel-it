@@ -111,6 +111,52 @@ const FOCUSED_ASSET_LABELS: Record<FocusedAssetType, string> = {
   pinpile: "Pin-pile cluster",
 };
 
+const REPRESENTATIVE_PART_LEGEND: Record<
+  FocusedAssetType,
+  Array<{ label: string; color: string }>
+> = {
+  turbine: [
+    { label: "Tower", color: "#D8D8D8" },
+    { label: "Transition Piece", color: "#A0A0A0" },
+    { label: "Hub / Blades", color: "#EFEFEF" },
+    { label: "Cable Entry", color: "#374151" },
+  ],
+  oss: [
+    { label: "Jacket Structure", color: "#6B7280" },
+    { label: "Main / Cellar Deck", color: "#9CA3AF" },
+    { label: "HV Switchgear", color: "#1E3A5F" },
+    { label: "Cable Pull-in Heads", color: "#374151" },
+  ],
+  monopile: [
+    { label: "Monopile (MP)", color: "#7A5C3A" },
+    { label: "Transition Piece (TP)", color: "#909090" },
+    { label: "Cable Hang-off", color: "#60a5fa" },
+    { label: "J-tube / Pull-in", color: "#374151" },
+  ],
+  monopile_tpless: [
+    { label: "Monopile (TP-less)", color: "#7A5C3A" },
+    { label: "Grouted Collar", color: "#8f8f8f" },
+    { label: "Cable Pull-in", color: "#374151" },
+  ],
+  jacket: [
+    { label: "Jacket Legs", color: "#6B7280" },
+    { label: "Bracing", color: "#5B6370" },
+    { label: "TP Flange Node", color: "#7a7f89" },
+    { label: "Cable J-tube", color: "#60a5fa" },
+  ],
+  tripod: [
+    { label: "Central Column", color: "#6b7280" },
+    { label: "Brace Arms", color: "#64748b" },
+    { label: "Pile Sleeves", color: "#6b7280" },
+    { label: "Cable J-tube", color: "#60a5fa" },
+  ],
+  pinpile: [
+    { label: "Levelling Frame", color: "#6f6f72" },
+    { label: "Pin Piles", color: "#5f6368" },
+    { label: "Grout Grid", color: "#a3a3a8" },
+  ],
+};
+
 function isFocusedAssetType(
   value: string | null | undefined
 ): value is FocusedAssetType {
@@ -971,7 +1017,7 @@ export default function ThreeDViewPage() {
             sceneMode={sceneMode}
             focusAssetType={focusAssetType}
             anchorCatalog={mergedAnchorsForFocus}
-            representativeModelUrl={representativeModelUrl}
+            representativeModelUrl={sceneMode === "representative" ? null : representativeModelUrl}
             mappingTargetPointId={mappingPointId}
             onAnchorClick={handleAnchorClick}
             initialCamera={initialCamera}
@@ -1006,7 +1052,7 @@ export default function ThreeDViewPage() {
             <p className="mt-1.5 text-[10px] text-gray-300">
               {markers.length} points shown
               {sceneMode === "representative"
-                ? ` for ${focusAssetType === "turbine" ? "Turbine" : "OSS"}`
+                ? ` for ${FOCUSED_ASSET_LABELS[focusAssetType]}`
                 : selectedAsset
                   ? ` for ${selectedAsset.label}`
                   : ""}
@@ -1068,10 +1114,27 @@ export default function ThreeDViewPage() {
 
         {sceneMode === "representative" && (
           <div className="w-96 overflow-y-auto border-l bg-background">
+            <div className="border-b p-4">
+              <p className="text-xs font-medium uppercase text-muted-foreground">Visible Parts</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Representative view uses procedural parts so TP, cable, MP and structural zones remain distinct.
+              </p>
+              <div className="mt-2 space-y-1.5">
+                {REPRESENTATIVE_PART_LEGEND[focusAssetType].map((part) => (
+                  <div key={part.label} className="flex items-center gap-2 text-xs">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full border border-border"
+                      style={{ backgroundColor: part.color }}
+                    />
+                    <span>{part.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
             <div className="border-b p-4 space-y-2">
               <p className="text-sm font-semibold">Topic Mapping</p>
               <p className="text-xs text-muted-foreground">
-                Map interface topics to {focusAssetType === "turbine" ? "turbine" : "OSS"} anchors.
+                Map interface topics to {FOCUSED_ASSET_LABELS[focusAssetType].toLowerCase()} anchors.
               </p>
               <Input
                 placeholder="Search unmapped topics"

@@ -3,6 +3,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 ## Recent Changes
 
 - 3D: Turbine blade orientation was corrected so blade root thickness now faces the hub in both representative and layout views (`TurbineAsset`).
+- 3D: Representative mode now prioritizes procedural assets and shows a visible parts legend so TP/cable/MP and other major structural parts are clearly distinguishable.
 
 ## Getting Started
 
