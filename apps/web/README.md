@@ -1,5 +1,9 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Recent Changes
+
+- 3D: Turbine blade orientation was corrected so blade root thickness now faces the hub in both representative and layout views (`TurbineAsset`).
+
 ## Getting Started
 
 First, run the development server:

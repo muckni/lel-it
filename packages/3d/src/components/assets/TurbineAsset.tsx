@@ -76,7 +76,7 @@ export function TurbineAsset({ position, rotationY = 0, hasCableRiser = false }:
         const bladeX = Math.sin(rad) * 4.2;
         const bladeY = 9.3 + Math.cos(rad) * 4.2;
         return (
-          <mesh key={`blade-${index}`} position={[bladeX, bladeY, 0.9]} rotation={[0.15, 0, rad]}>
+          <mesh key={`blade-${index}`} position={[bladeX, bladeY, 0.9]} rotation={[Math.PI + 0.15, 0, rad]}>
             <cylinderGeometry args={[0.05, 0.4, 8, 6]} />
             <meshStandardMaterial color="#EFEFEF" roughness={0.3} metalness={0.08} />
           </mesh>
