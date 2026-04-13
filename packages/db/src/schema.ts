@@ -249,6 +249,66 @@ export const llChangeRequestStatusEnum = pgEnum("ll_change_request_status", [
   "rejected",
 ]);
 
+export const lessonWorkflowStateEnum = pgEnum("lesson_workflow_state", [
+  "ingested",
+  "triaged",
+  "clustered",
+  "classified",
+  "actioned",
+  "report_ready",
+]);
+
+export const lessonTriageDecisionEnum = pgEnum("lesson_triage_decision", [
+  "retain",
+  "drop",
+  "defer",
+  "hold",
+  "duplicate",
+  "external_context",
+]);
+
+export const lessonCycleTypeEnum = pgEnum("lesson_cycle_type", [
+  "monthly",
+  "pre_gate",
+  "ad_hoc",
+]);
+
+export const lessonCycleStateEnum = pgEnum("lesson_cycle_state", [
+  "planned",
+  "active",
+  "completed",
+  "archived",
+]);
+
+export const lessonActionPriorityEnum = pgEnum("lesson_action_priority", [
+  "do",
+  "delay",
+  "delegate",
+  "drop",
+]);
+
+export const lessonActionStatusEnum = pgEnum("lesson_action_status", [
+  "not_started",
+  "in_progress",
+  "done",
+  "overdue",
+]);
+
+export const lessonEscalationStatusEnum = pgEnum("lesson_escalation_status", [
+  "draft",
+  "submitted",
+  "acknowledged",
+  "assigned",
+  "closed",
+]);
+
+export const lessonRoleTypeEnum = pgEnum("lesson_role_type", [
+  "ll_manager",
+  "document_controller",
+  "pmo_director",
+  "hope",
+]);
+
 // ─── Tables ──────────────────────────────────────────────────────────────────
 
 export const portfolios = pgTable("portfolios", {
@@ -1248,6 +1308,7 @@ export const lessonsLearned = pgTable(
     discipline: llDisciplineEnum("discipline").notNull().default("other"),
     projectPhase: projectPhaseEnum("project_phase"),
     status: llStatusEnum("status").notNull().default("draft"),
+    workflowState: lessonWorkflowStateEnum("workflow_state").notNull().default("ingested"),
     authorId: uuid("author_id").notNull(),
     validatedById: uuid("validated_by_id"),
     validatedAt: timestamp("validated_at", { withTimezone: true }),
@@ -1330,10 +1391,285 @@ export const lessonLearnedChangeRequests = pgTable(
   ]
 );
 
+export const lessonPolicyProfiles = pgTable(
+  "lesson_policy_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    portfolioId: uuid("portfolio_id").references(() => portfolios.id, {
+      onDelete: "cascade",
+    }),
+    name: text("name").notNull().default("Default Policy"),
+    trackAApprovalEur250k: integer("track_a_approval_eur_250k").notNull().default(250000),
+    trackAApprovalEur1m: integer("track_a_approval_eur_1m").notNull().default(1000000),
+    monthlyTriageDay: integer("monthly_triage_day").notNull().default(1),
+    preGateLeadWeeks: integer("pre_gate_lead_weeks").notNull().default(6),
+    reminderSlaDays: integer("reminder_sla_days").notNull().default(5),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("lesson_policy_profiles_portfolio_idx").on(table.portfolioId, table.active),
+  ]
+);
+
+export const projectLessonPolicyAssignments = pgTable(
+  "project_lesson_policy_assignments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    policyProfileId: uuid("policy_profile_id")
+      .notNull()
+      .references(() => lessonPolicyProfiles.id, { onDelete: "cascade" }),
+    assignedBy: uuid("assigned_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("project_lesson_policy_assignments_project_idx").on(table.projectId),
+  ]
+);
+
+export const projectLessonRoleAssignments = pgTable(
+  "project_lesson_role_assignments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => projectMembers.id, { onDelete: "cascade" }),
+    roleType: lessonRoleTypeEnum("role_type").notNull(),
+    assignedBy: uuid("assigned_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("project_lesson_role_unique_idx").on(table.projectId, table.memberId, table.roleType),
+    index("project_lesson_role_project_idx").on(table.projectId, table.roleType),
+  ]
+);
+
+export const lessonCycles = pgTable(
+  "lesson_cycles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    policyProfileId: uuid("policy_profile_id").references(() => lessonPolicyProfiles.id, {
+      onDelete: "set null",
+    }),
+    cycleType: lessonCycleTypeEnum("cycle_type").notNull(),
+    state: lessonCycleStateEnum("state").notNull().default("planned"),
+    cycleLabel: text("cycle_label").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }),
+    gateDate: date("gate_date"),
+    tMinus6At: timestamp("t_minus_6_at", { withTimezone: true }),
+    tMinus5At: timestamp("t_minus_5_at", { withTimezone: true }),
+    tMinus4At: timestamp("t_minus_4_at", { withTimezone: true }),
+    tMinus3At: timestamp("t_minus_3_at", { withTimezone: true }),
+    tMinus2At: timestamp("t_minus_2_at", { withTimezone: true }),
+    tMinus1At: timestamp("t_minus_1_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdBy: uuid("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("lesson_cycles_project_state_idx").on(table.projectId, table.state, table.cycleType),
+  ]
+);
+
+export const lessonTriageDecisions = pgTable(
+  "lesson_triage_decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    cycleId: uuid("cycle_id").references(() => lessonCycles.id, { onDelete: "set null" }),
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessonsLearned.id, { onDelete: "cascade" }),
+    decision: lessonTriageDecisionEnum("decision").notNull(),
+    rationale: text("rationale").notNull(),
+    duplicateOfLessonId: uuid("duplicate_of_lesson_id").references(() => lessonsLearned.id, {
+      onDelete: "set null",
+    }),
+    deferTrigger: text("defer_trigger"),
+    reviewerId: uuid("reviewer_id").notNull(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("lesson_triage_decisions_lesson_unique_idx").on(table.lessonId),
+    index("lesson_triage_decisions_project_decision_idx").on(table.projectId, table.decision),
+  ]
+);
+
+export const lessonClusters = pgTable(
+  "lesson_clusters",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    cycleId: uuid("cycle_id").references(() => lessonCycles.id, { onDelete: "set null" }),
+    packageId: uuid("package_id").references(() => workPackages.id, { onDelete: "set null" }),
+    clusterName: text("cluster_name").notNull(),
+    phase: projectPhaseEnum("phase"),
+    rootCause: text("root_cause"),
+    eventNarrative: text("event_narrative"),
+    impactSummary: text("impact_summary"),
+    impactCostEur: integer("impact_cost_eur"),
+    impactScheduleDays: integer("impact_schedule_days"),
+    isCrossPackage: boolean("is_cross_package").notNull().default(false),
+    trackType: text("track_type"),
+    trackRationale: text("track_rationale"),
+    createdBy: uuid("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("lesson_clusters_project_cycle_idx").on(table.projectId, table.cycleId, table.createdAt),
+    index("lesson_clusters_project_track_idx").on(table.projectId, table.trackType),
+  ]
+);
+
+export const lessonClusterItems = pgTable(
+  "lesson_cluster_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    clusterId: uuid("cluster_id")
+      .notNull()
+      .references(() => lessonClusters.id, { onDelete: "cascade" }),
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessonsLearned.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("lesson_cluster_items_unique_idx").on(table.clusterId, table.lessonId),
+    index("lesson_cluster_items_project_cluster_idx").on(table.projectId, table.clusterId),
+  ]
+);
+
+export const lessonTrackAActions = pgTable(
+  "lesson_track_a_actions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    cycleId: uuid("cycle_id").references(() => lessonCycles.id, { onDelete: "set null" }),
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessonsLearned.id, { onDelete: "cascade" }),
+    clusterId: uuid("cluster_id").references(() => lessonClusters.id, { onDelete: "set null" }),
+    ownerUserId: uuid("owner_user_id"),
+    approvalLevel: text("approval_level"),
+    priority: lessonActionPriorityEnum("priority").notNull().default("do"),
+    status: lessonActionStatusEnum("status").notNull().default("not_started"),
+    actionText: text("action_text").notNull(),
+    successCriteria: text("success_criteria"),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    estimatedCostEur: integer("estimated_cost_eur"),
+    approvedBy: uuid("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    createdBy: uuid("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("lesson_track_a_actions_project_status_idx").on(table.projectId, table.status, table.dueAt),
+    index("lesson_track_a_actions_project_owner_idx").on(table.projectId, table.ownerUserId),
+  ]
+);
+
+export const lessonActionEvidence = pgTable(
+  "lesson_action_evidence",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    actionId: uuid("action_id")
+      .notNull()
+      .references(() => lessonTrackAActions.id, { onDelete: "cascade" }),
+    evidenceType: text("evidence_type").notNull(),
+    evidenceRef: text("evidence_ref").notNull(),
+    notes: text("notes"),
+    addedBy: uuid("added_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("lesson_action_evidence_project_action_idx").on(table.projectId, table.actionId),
+  ]
+);
+
+export const lessonTrackBEscalations = pgTable(
+  "lesson_track_b_escalations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    cycleId: uuid("cycle_id").references(() => lessonCycles.id, { onDelete: "set null" }),
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessonsLearned.id, { onDelete: "cascade" }),
+    clusterId: uuid("cluster_id").references(() => lessonClusters.id, { onDelete: "set null" }),
+    status: lessonEscalationStatusEnum("status").notNull().default("draft"),
+    structuralIssue: text("structural_issue").notNull(),
+    proposedCorporateAction: text("proposed_corporate_action").notNull(),
+    departmentOwner: text("department_owner"),
+    recommendedTargetPhase: projectPhaseEnum("recommended_target_phase"),
+    submittedBy: uuid("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    acknowledgedBy: uuid("acknowledged_by"),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    dueBy: timestamp("due_by", { withTimezone: true }),
+    createdBy: uuid("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("lesson_track_b_escalations_project_status_idx").on(table.projectId, table.status, table.dueBy),
+  ]
+);
+
+export const lessonPackageReports = pgTable(
+  "lesson_package_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    cycleId: uuid("cycle_id").references(() => lessonCycles.id, { onDelete: "set null" }),
+    packageId: uuid("package_id").references(() => workPackages.id, { onDelete: "set null" }),
+    version: integer("version").notNull().default(1),
+    reportHtmlPath: text("report_html_path").notNull(),
+    reportPdfPath: text("report_pdf_path").notNull(),
+    reportXlsxPath: text("report_xlsx_path").notNull(),
+    checksumSha256: text("checksum_sha256").notNull(),
+    generatedBy: uuid("generated_by").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("lesson_package_reports_project_cycle_idx").on(table.projectId, table.cycleId, table.generatedAt),
+  ]
+);
+
 // ─── Relations ───────────────────────────────────────────────────────────────
 
 export const portfoliosRelations = relations(portfolios, ({ many }) => ({
   projects: many(projects),
+  lessonPolicyProfiles: many(lessonPolicyProfiles),
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -1359,6 +1695,14 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   interfaceAuditExports: many(interfaceAuditExports),
   lessonsLearned: many(lessonsLearned),
   lessonLearnedChangeRequests: many(lessonLearnedChangeRequests),
+  lessonPolicyAssignments: many(projectLessonPolicyAssignments),
+  projectLessonRoleAssignments: many(projectLessonRoleAssignments),
+  lessonCycles: many(lessonCycles),
+  lessonTriageDecisions: many(lessonTriageDecisions),
+  lessonClusters: many(lessonClusters),
+  lessonTrackAActions: many(lessonTrackAActions),
+  lessonTrackBEscalations: many(lessonTrackBEscalations),
+  lessonPackageReports: many(lessonPackageReports),
 }));
 
 export const workPackagesRelations = relations(workPackages, ({ one }) => ({
@@ -1455,6 +1799,193 @@ export const lessonLearnedChangeRequestsRelations = relations(
   })
 );
 
+export const lessonPolicyProfilesRelations = relations(
+  lessonPolicyProfiles,
+  ({ one, many }) => ({
+    portfolio: one(portfolios, {
+      fields: [lessonPolicyProfiles.portfolioId],
+      references: [portfolios.id],
+    }),
+    projectAssignments: many(projectLessonPolicyAssignments),
+    cycles: many(lessonCycles),
+  })
+);
+
+export const projectLessonPolicyAssignmentsRelations = relations(
+  projectLessonPolicyAssignments,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [projectLessonPolicyAssignments.projectId],
+      references: [projects.id],
+    }),
+    policyProfile: one(lessonPolicyProfiles, {
+      fields: [projectLessonPolicyAssignments.policyProfileId],
+      references: [lessonPolicyProfiles.id],
+    }),
+  })
+);
+
+export const projectLessonRoleAssignmentsRelations = relations(
+  projectLessonRoleAssignments,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [projectLessonRoleAssignments.projectId],
+      references: [projects.id],
+    }),
+    member: one(projectMembers, {
+      fields: [projectLessonRoleAssignments.memberId],
+      references: [projectMembers.id],
+    }),
+  })
+);
+
+export const lessonCyclesRelations = relations(lessonCycles, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [lessonCycles.projectId],
+    references: [projects.id],
+  }),
+  policyProfile: one(lessonPolicyProfiles, {
+    fields: [lessonCycles.policyProfileId],
+    references: [lessonPolicyProfiles.id],
+  }),
+  triageDecisions: many(lessonTriageDecisions),
+  clusters: many(lessonClusters),
+  trackAActions: many(lessonTrackAActions),
+  trackBEscalations: many(lessonTrackBEscalations),
+  reports: many(lessonPackageReports),
+}));
+
+export const lessonTriageDecisionsRelations = relations(
+  lessonTriageDecisions,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [lessonTriageDecisions.projectId],
+      references: [projects.id],
+    }),
+    cycle: one(lessonCycles, {
+      fields: [lessonTriageDecisions.cycleId],
+      references: [lessonCycles.id],
+    }),
+    lesson: one(lessonsLearned, {
+      fields: [lessonTriageDecisions.lessonId],
+      references: [lessonsLearned.id],
+    }),
+  })
+);
+
+export const lessonClustersRelations = relations(lessonClusters, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [lessonClusters.projectId],
+    references: [projects.id],
+  }),
+  cycle: one(lessonCycles, {
+    fields: [lessonClusters.cycleId],
+    references: [lessonCycles.id],
+  }),
+  package: one(workPackages, {
+    fields: [lessonClusters.packageId],
+    references: [workPackages.id],
+  }),
+  clusterItems: many(lessonClusterItems),
+  trackAActions: many(lessonTrackAActions),
+  trackBEscalations: many(lessonTrackBEscalations),
+}));
+
+export const lessonClusterItemsRelations = relations(
+  lessonClusterItems,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [lessonClusterItems.projectId],
+      references: [projects.id],
+    }),
+    cluster: one(lessonClusters, {
+      fields: [lessonClusterItems.clusterId],
+      references: [lessonClusters.id],
+    }),
+    lesson: one(lessonsLearned, {
+      fields: [lessonClusterItems.lessonId],
+      references: [lessonsLearned.id],
+    }),
+  })
+);
+
+export const lessonTrackAActionsRelations = relations(
+  lessonTrackAActions,
+  ({ one, many }) => ({
+    project: one(projects, {
+      fields: [lessonTrackAActions.projectId],
+      references: [projects.id],
+    }),
+    cycle: one(lessonCycles, {
+      fields: [lessonTrackAActions.cycleId],
+      references: [lessonCycles.id],
+    }),
+    lesson: one(lessonsLearned, {
+      fields: [lessonTrackAActions.lessonId],
+      references: [lessonsLearned.id],
+    }),
+    cluster: one(lessonClusters, {
+      fields: [lessonTrackAActions.clusterId],
+      references: [lessonClusters.id],
+    }),
+    evidence: many(lessonActionEvidence),
+  })
+);
+
+export const lessonActionEvidenceRelations = relations(
+  lessonActionEvidence,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [lessonActionEvidence.projectId],
+      references: [projects.id],
+    }),
+    action: one(lessonTrackAActions, {
+      fields: [lessonActionEvidence.actionId],
+      references: [lessonTrackAActions.id],
+    }),
+  })
+);
+
+export const lessonTrackBEscalationsRelations = relations(
+  lessonTrackBEscalations,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [lessonTrackBEscalations.projectId],
+      references: [projects.id],
+    }),
+    cycle: one(lessonCycles, {
+      fields: [lessonTrackBEscalations.cycleId],
+      references: [lessonCycles.id],
+    }),
+    lesson: one(lessonsLearned, {
+      fields: [lessonTrackBEscalations.lessonId],
+      references: [lessonsLearned.id],
+    }),
+    cluster: one(lessonClusters, {
+      fields: [lessonTrackBEscalations.clusterId],
+      references: [lessonClusters.id],
+    }),
+  })
+);
+
+export const lessonPackageReportsRelations = relations(
+  lessonPackageReports,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [lessonPackageReports.projectId],
+      references: [projects.id],
+    }),
+    cycle: one(lessonCycles, {
+      fields: [lessonPackageReports.cycleId],
+      references: [lessonCycles.id],
+    }),
+    package: one(workPackages, {
+      fields: [lessonPackageReports.packageId],
+      references: [workPackages.id],
+    }),
+  })
+);
+
 export const deliverablesRelations = relations(deliverables, ({ one }) => ({
   interfacePoint: one(interfacePoints, {
     fields: [deliverables.interfacePointId],
@@ -1507,6 +2038,7 @@ export const projectMembersRelations = relations(
     }),
     memberWorkPackages: many(memberWorkPackages),
     organizationRoles: many(projectMemberOrganizationRoles),
+    lessonRoleAssignments: many(projectLessonRoleAssignments),
   })
 );
 

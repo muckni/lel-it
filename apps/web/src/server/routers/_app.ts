@@ -24,6 +24,10 @@ import { interfaceWorkspaceRouter } from "./interface-workspace";
 import { cableRouteRouter } from "./cable-route";
 import { anchorCatalogRouter } from "./anchor-catalog";
 import { lessonLearnedRouter } from "./lesson-learned";
+import { lessonOpsRouter } from "./lesson-ops";
+import { lessonPolicyRouter } from "./lesson-policy";
+import { lessonPortfolioRouter } from "./lesson-portfolio";
+import { lessonReportRouter } from "./lesson-report";
 
 export const appRouter = createTRPCRouter({
   portfolio: portfolioRouter,
@@ -51,6 +55,10 @@ export const appRouter = createTRPCRouter({
   cableRoute: cableRouteRouter,
   anchorCatalog: anchorCatalogRouter,
   lessonLearned: lessonLearnedRouter,
+  lessonOps: lessonOpsRouter,
+  lessonPolicy: lessonPolicyRouter,
+  lessonPortfolio: lessonPortfolioRouter,
+  lessonReport: lessonReportRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -228,6 +228,65 @@ export const LESSON_CHANGE_REQUEST_STATUSES = [
 export type LessonChangeRequestStatus =
   (typeof LESSON_CHANGE_REQUEST_STATUSES)[number];
 
+export const LESSON_WORKFLOW_STATES = [
+  "ingested",
+  "triaged",
+  "clustered",
+  "classified",
+  "actioned",
+  "report_ready",
+] as const;
+export type LessonWorkflowState = (typeof LESSON_WORKFLOW_STATES)[number];
+
+export const LESSON_TRIAGE_DECISIONS = [
+  "retain",
+  "drop",
+  "defer",
+  "hold",
+  "duplicate",
+  "external_context",
+] as const;
+export type LessonTriageDecision = (typeof LESSON_TRIAGE_DECISIONS)[number];
+
+export const LESSON_CYCLE_TYPES = ["monthly", "pre_gate", "ad_hoc"] as const;
+export type LessonCycleType = (typeof LESSON_CYCLE_TYPES)[number];
+
+export const LESSON_CYCLE_STATES = [
+  "planned",
+  "active",
+  "completed",
+  "archived",
+] as const;
+export type LessonCycleState = (typeof LESSON_CYCLE_STATES)[number];
+
+export const LESSON_ACTION_PRIORITIES = ["do", "delay", "delegate", "drop"] as const;
+export type LessonActionPriority = (typeof LESSON_ACTION_PRIORITIES)[number];
+
+export const LESSON_ACTION_STATUSES = [
+  "not_started",
+  "in_progress",
+  "done",
+  "overdue",
+] as const;
+export type LessonActionStatus = (typeof LESSON_ACTION_STATUSES)[number];
+
+export const LESSON_ESCALATION_STATUSES = [
+  "draft",
+  "submitted",
+  "acknowledged",
+  "assigned",
+  "closed",
+] as const;
+export type LessonEscalationStatus = (typeof LESSON_ESCALATION_STATUSES)[number];
+
+export const LESSON_ROLE_TYPES = [
+  "ll_manager",
+  "document_controller",
+  "pmo_director",
+  "hope",
+] as const;
+export type LessonRoleType = (typeof LESSON_ROLE_TYPES)[number];
+
 // Default work package templates
 export const DEFAULT_WORK_PACKAGES = [
   { code: "WTG", name: "Wind Turbine Generator", color: "#3B82F6" },

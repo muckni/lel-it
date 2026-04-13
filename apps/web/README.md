@@ -7,6 +7,10 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 - Project creation now captures required setup data (`foundationType`, `hasOssInterface`) and stores it in `projects.metadata.setup`; 3D defaults and demo layout seeding read these values.
 - UI labels now avoid exposing internal IDs/codes in user-facing areas (project breadcrumb, package displays in queries/points/wizards, and safe “Unknown package” fallbacks where names are missing).
 - 3D interface mapping now supports direct visual assignment flow from unmapped topic details and resolves mapped anchors to concrete marker positions in-scene for clickable review.
+- Lessons Learned Phase 10.1: added handbook-compliant operations layer (`lesson_cycles`, triage decisions, clusters, Track A actions + evidence, Track B escalations, package reports, policy profiles, LL role assignments).
+- Lessons module now runs strict post-submission workflow gating (intake/triage/cluster/classify/action/report-ready), plus cycle quality checks and gate-readiness blockers.
+- Added portfolio cockpit and report pack generation APIs (`lessonPortfolio`, `lessonOps`, `lessonPolicy`, `lessonReport`) with immutable HTML/PDF/XLSX artifacts in private storage.
+- Added Supabase automation functions for daily cycle orchestration and reminder escalation, including per-day notification idempotency checks.
 
 ## Getting Started
 
