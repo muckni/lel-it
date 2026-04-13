@@ -71,6 +71,13 @@
       "when": 1776014779323,
       "tag": "0009_fine_iron_lad",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776072059079,
+      "tag": "0010_magical_misty_knight",
+      "breakpoints": true
     }
   ]
 }

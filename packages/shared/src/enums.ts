@@ -190,6 +190,44 @@ export const ASSET_TYPES = [
 ] as const;
 export type AssetType = (typeof ASSET_TYPES)[number];
 
+export const LESSON_TYPES = [
+  "problem",
+  "success",
+  "risk",
+  "improvement",
+  "process_deviation",
+] as const;
+export type LessonType = (typeof LESSON_TYPES)[number];
+
+export const LESSON_STATUSES = [
+  "draft",
+  "validated",
+  "consolidated",
+  "closed",
+] as const;
+export type LessonStatus = (typeof LESSON_STATUSES)[number];
+
+export const LESSON_DISCIPLINES = [
+  "engineering",
+  "procurement",
+  "construction",
+  "installation",
+  "commissioning",
+  "project_management",
+  "hse",
+  "commercial",
+  "other",
+] as const;
+export type LessonDiscipline = (typeof LESSON_DISCIPLINES)[number];
+
+export const LESSON_CHANGE_REQUEST_STATUSES = [
+  "pending",
+  "approved",
+  "rejected",
+] as const;
+export type LessonChangeRequestStatus =
+  (typeof LESSON_CHANGE_REQUEST_STATUSES)[number];
+
 // Default work package templates
 export const DEFAULT_WORK_PACKAGES = [
   { code: "WTG", name: "Wind Turbine Generator", color: "#3B82F6" },
