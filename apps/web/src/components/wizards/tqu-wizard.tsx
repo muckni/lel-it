@@ -298,7 +298,13 @@ export function TquWizard({
 
             <div className="rounded border p-3 text-xs text-muted-foreground">
               <p>
-                RP: {workPackages.find((wp) => wp.id === raisedByPackageId)?.code ?? "-"} → PP: {workPackages.find((wp) => wp.id === assignedToPackageId)?.code ?? "-"}
+                RP: {(() => {
+                  const rp = workPackages.find((wp) => wp.id === raisedByPackageId);
+                  return rp ? `${rp.code} — ${rp.name}` : "-";
+                })()} → PP: {(() => {
+                  const pp = workPackages.find((wp) => wp.id === assignedToPackageId);
+                  return pp ? `${pp.code} — ${pp.name}` : "-";
+                })()}
               </p>
             </div>
 

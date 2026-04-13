@@ -5,6 +5,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 - 3D: Turbine blade orientation was corrected so blade root thickness now faces the hub in both representative and layout views (`TurbineAsset`).
 - 3D: Representative mode now prioritizes procedural assets and shows a visible parts legend so TP/cable/MP and other major structural parts are clearly distinguishable.
 - Project creation now captures required setup data (`foundationType`, `hasOssInterface`) and stores it in `projects.metadata.setup`; 3D defaults and demo layout seeding read these values.
+- UI labels now avoid exposing internal IDs/codes in user-facing areas (project breadcrumb, package displays in queries/points/wizards, and safe “Unknown package” fallbacks where names are missing).
 
 ## Getting Started
 

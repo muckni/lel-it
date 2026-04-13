@@ -147,8 +147,8 @@ export default function PointDetailPage() {
 
   const deliverables = point.deliverables ?? [];
   const packageById = new Map([
-    [point.agreement.register.packageA.id, point.agreement.register.packageA.code],
-    [point.agreement.register.packageB.id, point.agreement.register.packageB.code],
+    [point.agreement.register.packageA.id, `${point.agreement.register.packageA.code} — ${point.agreement.register.packageA.name}`],
+    [point.agreement.register.packageB.id, `${point.agreement.register.packageB.code} — ${point.agreement.register.packageB.name}`],
   ]);
 
   const scopeRows = [
@@ -269,14 +269,14 @@ export default function PointDetailPage() {
             <p className="text-xs text-muted-foreground">Package A</p>
             <p className="font-medium flex items-center gap-1 mt-0.5">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: point.agreement.register.packageA.color }} />
-              {point.agreement.register.packageA.code}
+              {point.agreement.register.packageA.code} — {point.agreement.register.packageA.name}
             </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Package B</p>
             <p className="font-medium flex items-center gap-1 mt-0.5">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: point.agreement.register.packageB.color }} />
-              {point.agreement.register.packageB.code}
+              {point.agreement.register.packageB.code} — {point.agreement.register.packageB.name}
             </p>
           </div>
           <div>
@@ -324,7 +324,7 @@ export default function PointDetailPage() {
                   : row?.mode === "not_relevant"
                     ? "n.r."
                     : row?.packageId
-                      ? packageById.get(row.packageId) ?? row.packageId
+                      ? packageById.get(row.packageId) ?? "Unknown package"
                       : "n.r.";
                 return (
                   <div key={phase.key} className="rounded border px-3 py-2">
@@ -423,7 +423,7 @@ export default function PointDetailPage() {
                           {d.responsiblePackage && (
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <span className="h-2 w-2 rounded-full" style={{ background: d.responsiblePackage.color }} />
-                              {d.responsiblePackage.code}
+                              {d.responsiblePackage.code} — {d.responsiblePackage.name}
                             </span>
                           )}
                           {d.dueDate && (
@@ -530,10 +530,10 @@ export default function PointDetailPage() {
                         </span>
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <span className="h-2 w-2 rounded-full" style={{ background: q.raisedByPackage.color }} />
-                          {q.raisedByPackage.code}
+                          {q.raisedByPackage.code} — {q.raisedByPackage.name}
                           <ArrowRightIcon className="h-3 w-3 mx-0.5" />
                           <span className="h-2 w-2 rounded-full" style={{ background: q.assignedToPackage.color }} />
-                          {q.assignedToPackage.code}
+                          {q.assignedToPackage.code} — {q.assignedToPackage.name}
                         </span>
                       </div>
                     </div>

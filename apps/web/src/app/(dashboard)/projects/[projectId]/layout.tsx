@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -15,6 +16,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notification-bell";
 import { featureFlags } from "@/lib/feature-flags";
+import { useTRPC } from "@/trpc/client";
 
 const baseTabs = [
   { name: "Overview", href: "" },
@@ -36,7 +38,11 @@ export default function ProjectLayout({
   const params = useParams();
   const pathname = usePathname();
   const projectId = params.projectId as string;
+  const trpc = useTRPC();
   const basePath = `/projects/${projectId}`;
+  const { data: project } = useQuery(
+    trpc.project.getById.queryOptions({ id: projectId })
+  );
   const tabs = baseTabs.filter((tab) => {
     if (tab.name === "Interfaces" && !featureFlags.interfaceWorkspaceV2) return false;
     return true;
@@ -58,7 +64,7 @@ export default function ProjectLayout({
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Project {projectId}</BreadcrumbPage>
+                <BreadcrumbPage>{project?.name ?? "Project"}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

@@ -184,6 +184,16 @@ function focusFromProjectSetup(setup: {
   return "monopile";
 }
 
+function assetTypeDisplayLabel(assetType: string) {
+  if (assetType in FOCUSED_ASSET_LABELS) {
+    return FOCUSED_ASSET_LABELS[assetType as FocusedAssetType];
+  }
+  if (assetType === "foundation") return "Foundation";
+  if (assetType === "array_cable") return "Array Cable";
+  if (assetType === "export_cable") return "Export Cable";
+  return assetType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function ThreeDViewPage() {
   const params = useParams();
   const router = useRouter();
@@ -1107,7 +1117,7 @@ export default function ThreeDViewPage() {
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
                 {selectedPoint.assetType && selectedPoint.assetPositionRef
-                  ? `${selectedPoint.assetType.toUpperCase()} · ${resolveAnchorLabel(
+                  ? `${assetTypeDisplayLabel(selectedPoint.assetType)} · ${resolveAnchorLabel(
                       selectedPoint.assetType,
                       selectedPoint.assetPositionRef
                     ) ?? selectedPoint.assetPositionRef}`

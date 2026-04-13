@@ -255,7 +255,7 @@ export default function QueryDetailPage() {
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ background: iq.raisedByPackage.color }}
               />
-              {iq.raisedByPackage.code}
+              {iq.raisedByPackage.code} — {iq.raisedByPackage.name ?? "Unknown package"}
             </p>
           </div>
           <div>
@@ -265,7 +265,7 @@ export default function QueryDetailPage() {
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ background: iq.assignedToPackage.color }}
               />
-              {iq.assignedToPackage.code}
+              {iq.assignedToPackage.code} — {iq.assignedToPackage.name ?? "Unknown package"}
             </p>
           </div>
           <div>

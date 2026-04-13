@@ -60,8 +60,8 @@ type IQ = {
   priority: string;
   dueDate: string | null;
   createdAt: Date;
-  raisedByPackage: { code: string; color: string };
-  assignedToPackage: { code: string; color: string };
+  raisedByPackage: { code: string; name: string; color: string };
+  assignedToPackage: { code: string; name: string; color: string };
   responses: unknown[];
   interfacePoint: {
     code: string;
@@ -161,13 +161,13 @@ export default function QueriesPage() {
               className="h-2 w-2 rounded-full"
               style={{ background: row.original.raisedByPackage.color }}
             />
-            {row.original.raisedByPackage.code}
+            {row.original.raisedByPackage.code} — {row.original.raisedByPackage.name ?? "Unknown package"}
             <span className="mx-1">→</span>
             <span
               className="h-2 w-2 rounded-full"
               style={{ background: row.original.assignedToPackage.color }}
             />
-            {row.original.assignedToPackage.code}
+            {row.original.assignedToPackage.code} — {row.original.assignedToPackage.name ?? "Unknown package"}
           </span>
         ),
       },
