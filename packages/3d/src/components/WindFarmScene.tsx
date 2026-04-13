@@ -6,7 +6,11 @@ import { OrbitControls, Grid, Environment, Stats } from "@react-three/drei";
 import * as THREE from "three";
 import { ASSET_ANCHOR_CATALOG } from "@owit/shared";
 import { TurbineAsset } from "./assets/TurbineAsset";
-import { FoundationAsset } from "./assets/FoundationAsset";
+import { MonopileAsset } from "./assets/MonopileAsset";
+import { MonopileTPlessAsset } from "./assets/MonopileTPlessAsset";
+import { JacketFoundationAsset } from "./assets/JacketFoundationAsset";
+import { TripodAsset } from "./assets/TripodAsset";
+import { PinpileCapAsset } from "./assets/PinpileCapAsset";
 import { OSSAsset } from "./assets/OSSAsset";
 import { GltfAsset } from "./assets/GltfAsset";
 import { CableRoute } from "./assets/CableRoute";
@@ -108,10 +112,22 @@ function AssetRenderer({
             return (
               <TurbineAsset key={a.id} position={pos} rotationY={a.rotationY} label={a.label} />
             );
-          case "foundation":
-            return (
-              <FoundationAsset key={a.id} position={pos} rotationY={a.rotationY} />
-            );
+          case "foundation": {
+            const variant = a.foundationVariant;
+            if (variant === "monopile_tpless") {
+              return <MonopileTPlessAsset key={a.id} position={pos} rotationY={a.rotationY} />;
+            }
+            if (variant === "jacket") {
+              return <JacketFoundationAsset key={a.id} position={pos} rotationY={a.rotationY} />;
+            }
+            if (variant === "tripod") {
+              return <TripodAsset key={a.id} position={pos} rotationY={a.rotationY} />;
+            }
+            if (variant === "pinpile") {
+              return <PinpileCapAsset key={a.id} position={pos} rotationY={a.rotationY} />;
+            }
+            return <MonopileAsset key={a.id} position={pos} rotationY={a.rotationY} />;
+          }
           case "oss":
             return (
               <OSSAsset key={a.id} position={pos} rotationY={a.rotationY} />
@@ -134,15 +150,32 @@ function RepresentativeAsset({
   assetType,
   modelUrl,
 }: {
-  assetType: "turbine" | "oss";
+  assetType: "turbine" | "oss" | "monopile" | "monopile_tpless" | "jacket" | "tripod" | "pinpile";
   modelUrl?: string | null;
 }) {
-  const position: [number, number, number] = assetType === "turbine" ? [0, 9, 0] : [0, 2, 0];
+  const positionByType: Record<
+    "turbine" | "oss" | "monopile" | "monopile_tpless" | "jacket" | "tripod" | "pinpile",
+    [number, number, number]
+  > = {
+    turbine: [0, 9, 0],
+    oss: [0, 2, 0],
+    monopile: [0, 0, 0],
+    monopile_tpless: [0, 0, 0],
+    jacket: [0, 0, 0],
+    tripod: [0, 0, 0],
+    pinpile: [0, 0, 0],
+  };
+  const position = positionByType[assetType];
   if (modelUrl) {
-    {/* lodLevel intentionally omitted — representative mode always renders at full fidelity (LOD 0) */}
+    // lodLevel intentionally omitted: representative mode renders at full fidelity (LOD 0).
     return <GltfAsset url={modelUrl} position={position} rotationY={0} />;
   }
   if (assetType === "turbine") return <TurbineAsset position={position} rotationY={0} label="WTG-Generic" />;
+  if (assetType === "monopile") return <MonopileAsset position={position} rotationY={0} />;
+  if (assetType === "monopile_tpless") return <MonopileTPlessAsset position={position} rotationY={0} />;
+  if (assetType === "jacket") return <JacketFoundationAsset position={position} rotationY={0} />;
+  if (assetType === "tripod") return <TripodAsset position={position} rotationY={0} />;
+  if (assetType === "pinpile") return <PinpileCapAsset position={position} rotationY={0} />;
   return <OSSAsset position={position} rotationY={0} />;
 }
 
@@ -252,7 +285,7 @@ export function WindFarmScene({
     label: anchor.label,
     worldPosition: [
       anchor.position[0],
-      anchor.position[1] + (focusAssetType === "turbine" ? 9 : 2),
+      anchor.position[1] + (focusAssetType === "turbine" ? 9 : focusAssetType === "oss" ? 2 : 0),
       anchor.position[2],
     ] as [number, number, number],
   }));
@@ -265,7 +298,9 @@ export function WindFarmScene({
     ?? (isRepresentative
       ? focusAssetType === "turbine"
         ? [14, 18, 18]
-        : [24, 18, 28]
+        : focusAssetType === "oss"
+          ? [24, 18, 28]
+          : [18, 10, 18]
       : [30, 30, 50]);
 
   return (

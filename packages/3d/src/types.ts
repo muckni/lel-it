@@ -11,6 +11,7 @@ export interface AssetPlacement {
   modelRegistryAssetId?: string | null;
   modelUrl?: string | null;
   lodLevel?: number;
+  foundationVariant?: "monopile" | "monopile_tpless" | "jacket" | "tripod" | "pinpile" | null;
 }
 
 export interface InterfacePointMarker {

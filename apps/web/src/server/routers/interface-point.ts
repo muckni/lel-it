@@ -44,6 +44,15 @@ const scopeAllocationInputSchema = z.object({
 
 const focusedAssetTypeEnum = z.enum(FOCUSED_ASSET_TYPES);
 
+function toInterfacePointAssetType(
+  assetType: z.infer<typeof focusedAssetTypeEnum>
+): "turbine" | "oss" | "foundation" {
+  if (assetType === "turbine" || assetType === "oss") {
+    return assetType;
+  }
+  return "foundation";
+}
+
 type ScopeValueInput = z.infer<typeof scopeValueSchema>;
 
 function normalizeScopeValue(value: ScopeValueInput) {
@@ -394,7 +403,7 @@ export const interfacePointRouter = createTRPCRouter({
       const [point] = await db
         .update(interfacePoints)
         .set({
-          assetType: input.assetType,
+          assetType: toInterfacePointAssetType(input.assetType),
           assetPositionRef: input.anchorKey,
           spatialX: null,
           spatialY: null,

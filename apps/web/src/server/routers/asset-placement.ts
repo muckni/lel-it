@@ -42,6 +42,7 @@ export const assetPlacementRouter = createTRPCRouter({
         rotationY: z.number().default(0),
         modelRegistryAssetId: z.string().uuid().optional(),
         lodLevel: z.number().int().min(0).max(4).optional(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {

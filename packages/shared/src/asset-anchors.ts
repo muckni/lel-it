@@ -1,4 +1,12 @@
-export const FOCUSED_ASSET_TYPES = ["turbine", "oss"] as const;
+export const FOCUSED_ASSET_TYPES = [
+  "turbine",
+  "oss",
+  "monopile",
+  "monopile_tpless",
+  "jacket",
+  "tripod",
+  "pinpile",
+] as const;
 export type FocusedAssetType = (typeof FOCUSED_ASSET_TYPES)[number];
 
 export interface AssetAnchorDefinition {
@@ -34,9 +42,45 @@ const ossAnchors = [
   { key: "helideck", label: "Helideck", position: [-1, 12.2, 0] as [number, number, number] },
 ] as const satisfies readonly AssetAnchorDefinition[];
 
+const monopileAnchors = [
+  { key: "tower_base", label: "Tower Base", position: [0, 2.5, 0] as [number, number, number] },
+  { key: "j_tube_entry", label: "J-tube Entry", position: [1.0, -7, 0] as [number, number, number] },
+  { key: "cable_hang_off", label: "Cable Hang-off", position: [0.8, 1.8, 0] as [number, number, number] },
+] as const satisfies readonly AssetAnchorDefinition[];
+
+const tplessAnchors = [
+  { key: "tower_base", label: "Tower Base", position: [0, 0.4, 0] as [number, number, number] },
+  { key: "grouted_collar", label: "Grouted Collar", position: [0, 0.2, 0] as [number, number, number] },
+  { key: "pile_above_water", label: "Pile Above Waterline", position: [0, -0.8, 0] as [number, number, number] },
+] as const satisfies readonly AssetAnchorDefinition[];
+
+const jacketAnchors = [
+  { key: "tp_flange", label: "TP Flange", position: [0, 3.2, 0] as [number, number, number] },
+  { key: "cable_j_tube", label: "Cable J-tube", position: [1.5, -8, 0] as [number, number, number] },
+  { key: "anode_cluster", label: "Anode Cluster", position: [1.0, -4, 0] as [number, number, number] },
+] as const satisfies readonly AssetAnchorDefinition[];
+
+const tripodAnchors = [
+  { key: "tp_flange", label: "TP Flange", position: [0, 4, 0] as [number, number, number] },
+  { key: "cable_j_tube", label: "Cable J-tube", position: [1.2, -6, 0] as [number, number, number] },
+] as const satisfies readonly AssetAnchorDefinition[];
+
+const pinpileAnchors = [
+  { key: "frame_top", label: "Frame Top", position: [0, 0, 0] as [number, number, number] },
+  { key: "pile_nw", label: "Pile NW", position: [-1.5, -3, -1.5] as [number, number, number] },
+  { key: "pile_ne", label: "Pile NE", position: [1.5, -3, -1.5] as [number, number, number] },
+  { key: "pile_sw", label: "Pile SW", position: [-1.5, -3, 1.5] as [number, number, number] },
+  { key: "pile_se", label: "Pile SE", position: [1.5, -3, 1.5] as [number, number, number] },
+] as const satisfies readonly AssetAnchorDefinition[];
+
 export const ASSET_ANCHOR_CATALOG = {
   turbine: turbineAnchors,
   oss: ossAnchors,
+  monopile: monopileAnchors,
+  monopile_tpless: tplessAnchors,
+  jacket: jacketAnchors,
+  tripod: tripodAnchors,
+  pinpile: pinpileAnchors,
 } as const;
 
 type Catalog = typeof ASSET_ANCHOR_CATALOG;

@@ -82,6 +82,9 @@ const addAssetSchema = z.object({
   positionY: z.number(),
   positionZ: z.number(),
   rotationY: z.number(),
+  foundationVariant: z
+    .enum(["monopile", "monopile_tpless", "jacket", "tripod", "pinpile"])
+    .optional(),
 });
 
 type AddAssetFormValues = z.infer<typeof addAssetSchema>;
@@ -98,10 +101,30 @@ type ModelAsset = {
 
 type SceneMode = "representative" | "layout";
 
+const FOCUSED_ASSET_LABELS: Record<FocusedAssetType, string> = {
+  turbine: "Turbine",
+  oss: "OSS",
+  monopile: "Monopile",
+  monopile_tpless: "Monopile TP-less",
+  jacket: "Jacket",
+  tripod: "Tripod",
+  pinpile: "Pin-pile cluster",
+};
+
 function isFocusedAssetType(
   value: string | null | undefined
 ): value is FocusedAssetType {
   return !!value && (FOCUSED_ASSET_TYPES as readonly string[]).includes(value);
+}
+
+function isFoundationFocus(assetType: FocusedAssetType) {
+  return (
+    assetType === "monopile" ||
+    assetType === "monopile_tpless" ||
+    assetType === "jacket" ||
+    assetType === "tripod" ||
+    assetType === "pinpile"
+  );
 }
 
 export default function ThreeDViewPage() {
@@ -119,8 +142,10 @@ export default function ThreeDViewPage() {
     featureFlags.threeDRepresentativeMode && searchParams.get("mode") !== "layout"
       ? "representative"
       : "layout";
-  const defaultFocusAssetType: FocusedAssetType =
-    searchParams.get("asset") === "oss" ? "oss" : "turbine";
+  const assetQuery = searchParams.get("asset");
+  const defaultFocusAssetType: FocusedAssetType = isFocusedAssetType(assetQuery)
+    ? assetQuery
+    : "turbine";
 
   const [sceneMode, setSceneMode] = useState<SceneMode>(defaultSceneMode);
   const [focusAssetType, setFocusAssetType] = useState<FocusedAssetType>(
@@ -362,9 +387,12 @@ export default function ThreeDViewPage() {
       if (isFocusedAssetType(assetType)) {
         return getAnchorLabel(assetType, anchorKey);
       }
+      if (assetType === "foundation" && isFoundationFocus(focusAssetType)) {
+        return getAnchorLabel(focusAssetType, anchorKey);
+      }
       return null;
     },
-    [mergedAnchors]
+    [mergedAnchors, focusAssetType]
   );
 
   const createAnchor = useMutation(
@@ -472,12 +500,16 @@ export default function ThreeDViewPage() {
   const form = useForm<AddAssetFormValues>({
     resolver: zodResolver(addAssetSchema),
     defaultValues: {
+      assetType: "turbine",
+      label: "",
       positionX: 0,
       positionY: 0,
       positionZ: 0,
       rotationY: 0,
+      foundationVariant: "monopile",
     },
   });
+  const watchedAssetType = form.watch("assetType");
 
   const models = registryModels as ModelAsset[];
   const modelsById = useMemo(
@@ -506,9 +538,13 @@ export default function ThreeDViewPage() {
         const model = asset.modelRegistryAssetId
           ? modelsById.get(asset.modelRegistryAssetId)
           : null;
+        const metadata = (asset.metadata ?? {}) as Record<string, unknown>;
         return {
           ...asset,
           modelUrl: model?.signedUrl ?? null,
+          foundationVariant:
+            (metadata.foundationVariant as AddAssetFormValues["foundationVariant"] | undefined) ??
+            null,
         };
       }),
     [assetsRaw, modelsById]
@@ -520,7 +556,11 @@ export default function ThreeDViewPage() {
   const mappedPointsForFocus = useMemo(
     () =>
       allProjectPoints.filter(
-        (point) => point.assetType === focusAssetType && !!point.assetPositionRef
+        (point) =>
+          (isFoundationFocus(focusAssetType)
+            ? point.assetType === "foundation"
+            : point.assetType === focusAssetType) &&
+          !!point.assetPositionRef
       ),
     [allProjectPoints, focusAssetType]
   );
@@ -537,7 +577,11 @@ export default function ThreeDViewPage() {
 
     if (sceneMode === "representative") {
       return source
-        .filter((point) => point.assetType === focusAssetType)
+        .filter((point) =>
+          isFoundationFocus(focusAssetType)
+            ? point.assetType === "foundation"
+            : point.assetType === focusAssetType
+        )
         .map((point) => ({
           id: point.id,
           code: point.code,
@@ -694,8 +738,11 @@ export default function ThreeDViewPage() {
                 <SelectValue placeholder="Asset" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="turbine">Turbine</SelectItem>
-                <SelectItem value="oss">OSS</SelectItem>
+                {FOCUSED_ASSET_TYPES.map((assetType) => (
+                  <SelectItem key={assetType} value={assetType}>
+                    {FOCUSED_ASSET_LABELS[assetType]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}
@@ -1432,7 +1479,19 @@ export default function ThreeDViewPage() {
           </DialogHeader>
           <form
             onSubmit={form.handleSubmit((values) =>
-              addAsset.mutate({ projectId, ...values })
+              addAsset.mutate({
+                projectId,
+                assetType: values.assetType,
+                label: values.label,
+                positionX: values.positionX,
+                positionY: values.positionY,
+                positionZ: values.positionZ,
+                rotationY: values.rotationY,
+                metadata:
+                  values.assetType === "foundation" && values.foundationVariant
+                    ? { foundationVariant: values.foundationVariant }
+                    : undefined,
+              })
             )}
             className="space-y-4"
           >
@@ -1440,6 +1499,7 @@ export default function ThreeDViewPage() {
               <div className="space-y-2">
                 <Label>Asset Type *</Label>
                 <Select
+                  value={form.watch("assetType")}
                   onValueChange={(value) =>
                     form.setValue("assetType", value as AddAssetFormValues["assetType"])
                   }
@@ -1465,6 +1525,32 @@ export default function ThreeDViewPage() {
                 <Input placeholder="WTG-01" {...form.register("label")} />
               </div>
             </div>
+
+            {watchedAssetType === "foundation" && (
+              <div className="space-y-2">
+                <Label>Foundation type</Label>
+                <Select
+                  value={form.watch("foundationVariant") ?? "monopile"}
+                  onValueChange={(value) =>
+                    form.setValue(
+                      "foundationVariant",
+                      value as AddAssetFormValues["foundationVariant"]
+                    )
+                  }
+                >
+                  <SelectTrigger className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monopile">Monopile</SelectItem>
+                    <SelectItem value="monopile_tpless">Monopile TP-less</SelectItem>
+                    <SelectItem value="jacket">Jacket</SelectItem>
+                    <SelectItem value="tripod">Tripod</SelectItem>
+                    <SelectItem value="pinpile">Pin-pile cluster</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-2">
               <div className="space-y-2">
