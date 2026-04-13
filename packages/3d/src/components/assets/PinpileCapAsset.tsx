@@ -1,9 +1,6 @@
-import { QuadraticBezierLine } from "@react-three/drei";
-
 interface Props {
   position: [number, number, number];
   rotationY?: number;
-  hasCableRiser?: boolean;
 }
 
 const PILE_POSITIONS: [number, number, number][] = [
@@ -13,7 +10,7 @@ const PILE_POSITIONS: [number, number, number][] = [
   [1.5, -3, 1.5],
 ];
 
-export function PinpileCapAsset({ position, rotationY = 0, hasCableRiser = false }: Props) {
+export function PinpileCapAsset({ position, rotationY = 0 }: Props) {
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       <mesh position={[0, -0.25, 0]}>
@@ -42,17 +39,6 @@ export function PinpileCapAsset({ position, rotationY = 0, hasCableRiser = false
         </mesh>
       ))}
 
-      {hasCableRiser && (
-        <QuadraticBezierLine
-          start={[0, -0.3, 0]}
-          mid={[0.75, -0.05, 0.2]}
-          end={[0.8, 0.3, 0]}
-          color="#374151"
-          lineWidth={2}
-          transparent
-          opacity={0.85}
-        />
-      )}
     </group>
   );
 }

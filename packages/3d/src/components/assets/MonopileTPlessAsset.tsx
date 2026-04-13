@@ -10,7 +10,7 @@ export function MonopileTPlessAsset({ position, rotationY = 0, hasCableRiser = f
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       <mesh position={[0, -5, 0]}>
-        <cylinderGeometry args={[0.6, 0.52, 10, 18]} />
+        <cylinderGeometry args={[0.6, 0.6, 10, 18]} />
         <meshStandardMaterial color="#7A5C3A" roughness={0.82} metalness={0.14} />
       </mesh>
 

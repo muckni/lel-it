@@ -18,8 +18,22 @@ import { InterfacePointMarkers } from "./InterfacePointMarkers";
 import { MeasurementTool } from "./MeasurementTool";
 import type { WindFarmSceneProps, CameraControl, CameraState } from "../types";
 
+const REPRESENTATIVE_ASSET_POSITIONS: Record<
+  "turbine" | "oss" | "monopile" | "monopile_tpless" | "jacket" | "tripod" | "pinpile",
+  [number, number, number]
+> = {
+  turbine: [0, 9, 0],
+  oss: [0, 2, 0],
+  monopile: [0, 0, 0],
+  monopile_tpless: [0, 0, 0],
+  jacket: [0, 0, 0],
+  tripod: [0, 0, 0],
+  pinpile: [0, 0, 0],
+};
+
 function SeaSurface() {
   const meshRef = useRef<THREE.Mesh>(null);
+  const frameRef = useRef(0);
 
   useFrame(({ clock }) => {
     const mesh = meshRef.current;
@@ -33,7 +47,11 @@ function SeaSurface() {
       pos.setY(i, Math.sin(x * 0.3 + t) * 0.1 + Math.sin(z * 0.4 + t * 0.7) * 0.08);
     }
     pos.needsUpdate = true;
-    geo.computeVertexNormals();
+    frameRef.current += 1;
+    // Recompute normals every other frame to keep wave shading smooth without unnecessary CPU cost.
+    if (frameRef.current % 2 === 0) {
+      geo.computeVertexNormals();
+    }
   });
 
   return (
@@ -184,7 +202,6 @@ function AssetRenderer({
                   key={a.id}
                   position={pos}
                   rotationY={a.rotationY}
-                  hasCableRiser={cabledAssetIds.has(a.id)}
                 />
               );
             }
@@ -222,19 +239,7 @@ function RepresentativeAsset({
   assetType: "turbine" | "oss" | "monopile" | "monopile_tpless" | "jacket" | "tripod" | "pinpile";
   modelUrl?: string | null;
 }) {
-  const positionByType: Record<
-    "turbine" | "oss" | "monopile" | "monopile_tpless" | "jacket" | "tripod" | "pinpile",
-    [number, number, number]
-  > = {
-    turbine: [0, 9, 0],
-    oss: [0, 2, 0],
-    monopile: [0, 0, 0],
-    monopile_tpless: [0, 0, 0],
-    jacket: [0, 0, 0],
-    tripod: [0, 0, 0],
-    pinpile: [0, 0, 0],
-  };
-  const position = positionByType[assetType];
+  const position = REPRESENTATIVE_ASSET_POSITIONS[assetType];
   if (modelUrl) {
     // lodLevel intentionally omitted: representative mode renders at full fidelity (LOD 0).
     return <GltfAsset url={modelUrl} position={position} rotationY={0} />;
@@ -358,7 +363,7 @@ export function WindFarmScene({
     label: anchor.label,
     worldPosition: [
       anchor.position[0],
-      anchor.position[1] + (focusAssetType === "turbine" ? 9 : focusAssetType === "oss" ? 2 : 0),
+      anchor.position[1] + REPRESENTATIVE_ASSET_POSITIONS[focusAssetType][1],
       anchor.position[2],
     ] as [number, number, number],
   }));

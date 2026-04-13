@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { OrientedCylinder } from "./helpers";
 
 interface Props {
   position: [number, number, number];
@@ -21,44 +21,19 @@ const LEG_BOTTOMS: Vec3[] = [
   [-5.5, -14, 5.5],
 ];
 
-const UP = new THREE.Vector3(0, 1, 0);
-
-function Strut({
-  from,
-  to,
-  radius,
-  color,
-}: {
-  from: Vec3;
-  to: Vec3;
-  radius: number;
-  color: string;
-}) {
-  const fromVec = new THREE.Vector3(...from);
-  const toVec = new THREE.Vector3(...to);
-  const direction = toVec.clone().sub(fromVec);
-  const length = direction.length();
-  const mid = fromVec.clone().add(toVec).multiplyScalar(0.5);
-  const quaternion = new THREE.Quaternion().setFromUnitVectors(
-    UP,
-    direction.clone().normalize()
-  );
-
-  return (
-    <mesh position={mid.toArray()} quaternion={quaternion}>
-      <cylinderGeometry args={[radius, radius, length, 12]} />
-      <meshStandardMaterial color={color} roughness={0.58} metalness={0.28} />
-    </mesh>
-  );
-}
-
 export function OSSAsset({ position, rotationY = 0 }: Props) {
   const legColor = "#6B7280";
 
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       {LEG_TOPS.map((top, idx) => (
-        <Strut key={`leg-${idx}`} from={top} to={LEG_BOTTOMS[idx]!} radius={0.35} color={legColor} />
+        <OrientedCylinder
+          key={`leg-${idx}`}
+          from={top}
+          to={LEG_BOTTOMS[idx]!}
+          radiusTop={0.35}
+          color={legColor}
+        />
       ))}
 
       {[-5, -10].map((level) => {
@@ -80,8 +55,8 @@ export function OSSAsset({ position, rotationY = 0 }: Props) {
               const toB: Vec3 = [toA[0], toA[1] - 1.6, toA[2]];
               return (
                 <group key={`brace-${level}-${idx}`}>
-                  <Strut from={fromA} to={toB} radius={0.1} color={legColor} />
-                  <Strut from={toA} to={fromB} radius={0.1} color={legColor} />
+                  <OrientedCylinder from={fromA} to={toB} radiusTop={0.1} color={legColor} />
+                  <OrientedCylinder from={toA} to={fromB} radiusTop={0.1} color={legColor} />
                 </group>
               );
             })}
@@ -173,7 +148,13 @@ export function OSSAsset({ position, rotationY = 0 }: Props) {
       </mesh>
 
       {[[-2.2, 11.95, -2.2], [2.2, 11.95, -2.2], [2.2, 11.95, 2.2], [-2.2, 11.95, 2.2]].map((edge, idx) => (
-        <Strut key={`heli-strut-${idx}`} from={edge as Vec3} to={[edge[0], 4.4, edge[2]]} radius={0.08} color={legColor} />
+        <OrientedCylinder
+          key={`heli-strut-${idx}`}
+          from={edge as Vec3}
+          to={[edge[0], 4.4, edge[2]]}
+          radiusTop={0.08}
+          color={legColor}
+        />
       ))}
 
       <mesh position={[3, 4.4, -3]}>

@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { QuadraticBezierLine } from "@react-three/drei";
+import { OrientedCylinder } from "./helpers";
 
 interface Props {
   position: [number, number, number];
@@ -21,46 +22,21 @@ const TOP_POINTS = [
   [-0.9, 3, 0.9],
 ] as const;
 
-function Brace({ from, to, color = "#5B6370", radius = 0.09 }: { from: readonly [number, number, number]; to: readonly [number, number, number]; color?: string; radius?: number }) {
-  const dx = to[0] - from[0];
-  const dy = to[1] - from[1];
-  const dz = to[2] - from[2];
-  const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-  const mid: [number, number, number] = [
-    (from[0] + to[0]) / 2,
-    (from[1] + to[1]) / 2,
-    (from[2] + to[2]) / 2,
-  ];
-
-  return (
-    <mesh position={mid}>
-      <cylinderGeometry args={[radius, radius, length, 10]} />
-      <meshStandardMaterial color={color} roughness={0.55} metalness={0.3} />
-    </mesh>
-  );
-}
-
 export function JacketFoundationAsset({ position, rotationY = 0, hasCableRiser = false }: Props) {
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       {LEG_POINTS.map((base, idx) => {
         const top = TOP_POINTS[idx]!;
-        const legLen = Math.sqrt(
-          (top[0] - base[0]) ** 2 +
-          (top[1] - base[1]) ** 2 +
-          (top[2] - base[2]) ** 2
-        );
-        const mid: [number, number, number] = [
-          (base[0] + top[0]) / 2,
-          (base[1] + top[1]) / 2,
-          (base[2] + top[2]) / 2,
-        ];
         return (
           <Fragment key={idx}>
-            <mesh position={mid}>
-              <cylinderGeometry args={[0.16, 0.16, legLen, 12]} />
-              <meshStandardMaterial color="#6B7280" roughness={0.58} metalness={0.32} />
-            </mesh>
+            <OrientedCylinder
+              from={base}
+              to={top}
+              radiusTop={0.16}
+              color="#6B7280"
+              roughness={0.58}
+              metalness={0.32}
+            />
             <mesh position={[base[0], -11.85, base[2]]}>
               <cylinderGeometry args={[0.28, 0.24, 0.32, 12]} />
               <meshStandardMaterial color="#6B7280" roughness={0.6} metalness={0.26} />
@@ -86,16 +62,16 @@ export function JacketFoundationAsset({ position, rotationY = 0, hasCableRiser =
         const highB = [TOP_POINTS[next]![0], 0.5, TOP_POINTS[next]![2]] as const;
         return (
           <Fragment key={`ring-${idx}`}>
-            <Brace from={lowA} to={lowB} />
-            <Brace from={highA} to={highB} />
-            <Brace from={lowB} to={lowA} />
-            <Brace from={highB} to={highA} />
+            <OrientedCylinder from={lowA} to={lowB} radiusTop={0.09} color="#5B6370" radialSegments={10} roughness={0.55} metalness={0.3} />
+            <OrientedCylinder from={highA} to={highB} radiusTop={0.09} color="#5B6370" radialSegments={10} roughness={0.55} metalness={0.3} />
+            <OrientedCylinder from={lowB} to={lowA} radiusTop={0.09} color="#5B6370" radialSegments={10} roughness={0.55} metalness={0.3} />
+            <OrientedCylinder from={highB} to={highA} radiusTop={0.09} color="#5B6370" radialSegments={10} roughness={0.55} metalness={0.3} />
           </Fragment>
         );
       })}
 
-      <Brace from={[-1.6, -9, -1.6]} to={[1.6, -6.5, 1.6]} />
-      <Brace from={[1.6, -9, -1.6]} to={[-1.6, -6.5, 1.6]} />
+      <OrientedCylinder from={[-1.6, -9, -1.6]} to={[1.6, -6.5, 1.6]} radiusTop={0.09} color="#5B6370" radialSegments={10} roughness={0.55} metalness={0.3} />
+      <OrientedCylinder from={[1.6, -9, -1.6]} to={[-1.6, -6.5, 1.6]} radiusTop={0.09} color="#5B6370" radialSegments={10} roughness={0.55} metalness={0.3} />
 
       <mesh position={[1.5, -8, 0]}>
         <sphereGeometry args={[0.11, 10, 10]} />
