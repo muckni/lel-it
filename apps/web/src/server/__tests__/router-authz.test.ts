@@ -76,17 +76,22 @@ vi.mock("@owit/db", () => ({
   cableRoutes: {},
   memberWorkPackages: {},
   customAnchorDefinitions: {},
+  lessonsLearned: {},
+  lessonLearnedPoints: {},
+  lessonLearnedChangeRequests: {},
+  notifications: {},
 }));
 
 vi.mock("@/server/lib/project-id", () => ({
-  projectIdForRegister:      vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
-  projectIdForAgreement:     vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
-  projectIdForPoint:         vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
-  projectIdForQuery:         vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
-  projectIdForDeliverable:   vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
-  projectIdForWorkPackage:   vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
-  projectIdForAssetPlacement: vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
-  projectIdForComment:       vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
+  projectIdForRegister:        vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
+  projectIdForAgreement:       vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
+  projectIdForPoint:           vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
+  projectIdForQuery:           vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
+  projectIdForDeliverable:     vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
+  projectIdForWorkPackage:     vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
+  projectIdForAssetPlacement:  vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
+  projectIdForComment:         vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
+  projectIdForLessonLearned:   vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000001"),
 }));
 
 vi.mock("@/server/lib/log-activity", () => ({
@@ -214,6 +219,44 @@ describe("deliverable mutations require editor+", () => {
     await viewerForbids(() =>
       caller.create({ interfacePointId: PT, title: "Test deliverable" })
     );
+  });
+});
+
+describe("lesson-learned lifecycle requires editor+ (validate) and admin (consolidate)", () => {
+  beforeEach(() => {
+    mockRequireRole.mockReset();
+    mockAssertMember.mockResolvedValue(undefined);
+  });
+
+  it("lessonLearned.validate is blocked for viewer", async () => {
+    mockRequireRole.mockRejectedValue(FORBIDDEN);
+    const { lessonLearnedRouter } = await import("../routers/lesson-learned");
+    const caller = lessonLearnedRouter.createCaller(viewerCtx as any);
+    await viewerForbids(() => caller.validate({ id: PT }));
+  });
+
+  it("lessonLearned.consolidate is blocked for viewer", async () => {
+    mockRequireRole.mockRejectedValue(
+      new TRPCError({ code: "FORBIDDEN", message: "Requires admin role" })
+    );
+    const { lessonLearnedRouter } = await import("../routers/lesson-learned");
+    const caller = lessonLearnedRouter.createCaller(viewerCtx as any);
+    await viewerForbids(() => caller.consolidate({ id: PT }));
+  });
+
+  it("lessonLearned.create is allowed for viewer (member check only)", async () => {
+    mockRequireRole.mockResolvedValue(undefined);
+    mockAssertMember.mockResolvedValue(undefined);
+    const { lessonLearnedRouter } = await import("../routers/lesson-learned");
+    const caller = lessonLearnedRouter.createCaller(viewerCtx as any);
+    await expect(
+      caller.create({
+        projectId: PROJ,
+        title: "Test lesson",
+        description: "A description",
+        type: "problem",
+      })
+    ).resolves.toBeDefined();
   });
 });
 

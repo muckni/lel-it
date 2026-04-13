@@ -35,7 +35,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PointStatusBadge, CriticalityBadge } from "@/components/status-badge";
-import { PlusIcon, Trash2Icon, ExternalLinkIcon, CheckCircle2Icon, ClockIcon, MessageSquareIcon, ArrowRightIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, ExternalLinkIcon, CheckCircle2Icon, ClockIcon, MessageSquareIcon, ArrowRightIcon, BookOpenIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DELIVERABLE_STATUSES, POINT_STATUSES, SCOPE_ALLOCATION_PHASES } from "@owit/shared";
 import { format } from "date-fns";
@@ -46,6 +46,8 @@ import { useProjectRole } from "@/hooks/use-project-role";
 import { EntityAttachments } from "@/components/attachments/entity-attachments";
 import { DeadlineBadge, getDeadlineRowClassName } from "@/components/deadlines/deadline-badge";
 import { TquWizard } from "@/components/wizards/tqu-wizard";
+import { CreateLessonDialog } from "@/components/lessons/create-ll-dialog";
+import { LessonCard, type LessonCardItem } from "@/components/lessons/ll-card";
 
 const deliverableSchema = z.object({
   title: z.string().min(1).max(255),
@@ -90,6 +92,7 @@ export default function PointDetailPage() {
   const queryClient = useQueryClient();
   const [delOpen, setDelOpen] = useState(false);
   const [iqOpen, setIqOpen] = useState(false);
+  const [createLessonOpen, setCreateLessonOpen] = useState(false);
   const { canEdit } = useProjectRole(projectId);
 
   const { data: point, isLoading } = useQuery(
@@ -129,6 +132,10 @@ export default function PointDetailPage() {
 
   const { data: iqs = [] } = useQuery(
     trpc.interfaceQuery.listByPoint.queryOptions({ interfacePointId: pointId })
+  );
+
+  const { data: linkedLessons = [] } = useQuery(
+    trpc.lessonLearned.list.queryOptions({ projectId, interfacePointId: pointId })
   );
 
   const form = useForm<DeliverableFormValues>({ resolver: zodResolver(deliverableSchema) });
@@ -546,6 +553,66 @@ export default function PointDetailPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Linked Lessons */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BookOpenIcon className="h-4 w-4" />
+                Linked Lessons
+                {linkedLessons.length > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({linkedLessons.length})
+                  </span>
+                )}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/projects/${projectId}/modules/lessons`}
+                  className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
+                  View all <ExternalLinkIcon className="h-3.5 w-3.5" />
+                </a>
+                <Button size="sm" variant="outline" onClick={() => setCreateLessonOpen(true)}>
+                  <PlusIcon className="h-3.5 w-3.5 mr-1" /> Capture Lesson
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {linkedLessons.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No lessons linked to this interface point.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {linkedLessons.map((lesson) => (
+                  <LessonCard
+                    key={lesson.id}
+                    lesson={lesson as LessonCardItem}
+                    canEdit={canEdit}
+                    isAdmin={false}
+                    busy={false}
+                    onOpen={() => router.push(`/projects/${projectId}/modules/lessons`)}
+                    onValidate={() => {}}
+                    onConsolidate={() => {}}
+                    onClose={() => {}}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <CreateLessonDialog
+          projectId={projectId}
+          open={createLessonOpen}
+          onOpenChange={setCreateLessonOpen}
+          workPackages={workPackages}
+          defaultInterfacePointId={pointId}
+          onCreated={() => queryClient.invalidateQueries(trpc.lessonLearned.list.queryOptions({ projectId, interfacePointId: pointId }))}
+        />
 
         <TquWizard
           projectId={projectId}
