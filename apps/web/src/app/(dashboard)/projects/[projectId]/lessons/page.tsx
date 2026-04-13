@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 
-export default async function LegacyInterfacesPage({
+export default async function LegacyLessonsPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  redirect(`/projects/${projectId}/modules/interfaces`);
+  redirect(`/projects/${projectId}/modules/lessons`);
 }

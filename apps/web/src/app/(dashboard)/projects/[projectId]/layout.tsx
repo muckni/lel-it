@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useParams } from "next/navigation";
+import { useEffect } from "react";
+import { usePathname, useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   Breadcrumb,
@@ -19,8 +20,9 @@ import { featureFlags } from "@/lib/feature-flags";
 import { useTRPC } from "@/trpc/client";
 
 const baseTabs = [
-  { name: "Overview", href: "" },
-  { name: "Interfaces", href: "/interfaces" },
+  { name: "Module Selector", href: "" },
+  { name: "Interfaces", href: "/modules/interfaces" },
+  { name: "Lessons", href: "/modules/lessons" },
   { name: "Registers", href: "/registers" },
   { name: "Queries", href: "/queries" },
   { name: "Calendar", href: "/calendar" },
@@ -37,9 +39,12 @@ export default function ProjectLayout({
 }) {
   const params = useParams();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const projectId = params.projectId as string;
   const trpc = useTRPC();
   const basePath = `/projects/${projectId}`;
+  const moduleMemoryKey = `owit.project.${projectId}.module`;
   const { data: project } = useQuery(
     trpc.project.getById.queryOptions({ id: projectId })
   );
@@ -47,6 +52,27 @@ export default function ProjectLayout({
     if (tab.name === "Interfaces" && !featureFlags.interfaceWorkspaceV2) return false;
     return true;
   });
+  const isSelectingModule = searchParams.get("select") === "1";
+  const activeModule = pathname.includes("/modules/lessons")
+    ? "lessons"
+    : pathname.includes("/modules/interfaces")
+      ? "interfaces"
+      : null;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (pathname === basePath && !isSelectingModule) {
+      const rememberedModule = window.localStorage.getItem(moduleMemoryKey);
+      if (rememberedModule === "interfaces" || rememberedModule === "lessons") {
+        router.replace(`${basePath}/modules/${rememberedModule}`);
+      }
+    }
+  }, [basePath, isSelectingModule, moduleMemoryKey, pathname, router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !activeModule) return;
+    window.localStorage.setItem(moduleMemoryKey, activeModule);
+  }, [activeModule, moduleMemoryKey]);
 
   return (
     <>
@@ -68,6 +94,30 @@ export default function ProjectLayout({
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="hidden md:flex items-center gap-2 rounded-md border bg-background p-1 ml-2">
+            <Link
+              href={`${basePath}/modules/interfaces`}
+              className={cn(
+                "px-2.5 py-1 text-xs rounded-sm transition-colors",
+                activeModule === "interfaces"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Interfaces
+            </Link>
+            <Link
+              href={`${basePath}/modules/lessons`}
+              className={cn(
+                "px-2.5 py-1 text-xs rounded-sm transition-colors",
+                activeModule === "lessons"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Lessons
+            </Link>
+          </div>
           <div className="ml-auto pr-2">
             <NotificationBell />
           </div>
