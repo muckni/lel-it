@@ -1,8 +1,10 @@
 import { Fragment } from "react";
+import { QuadraticBezierLine } from "@react-three/drei";
 
 interface Props {
   position: [number, number, number];
   rotationY?: number;
+  hasCableRiser?: boolean;
 }
 
 function Brace({
@@ -34,7 +36,7 @@ function Brace({
 
 const ARM_ANGLES = [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3] as const;
 
-export function TripodAsset({ position, rotationY = 0 }: Props) {
+export function TripodAsset({ position, rotationY = 0, hasCableRiser = false }: Props) {
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       <mesh position={[0, -2, 0]}>
@@ -86,6 +88,18 @@ export function TripodAsset({ position, rotationY = 0 }: Props) {
         <sphereGeometry args={[0.1, 10, 10]} />
         <meshStandardMaterial color="#60a5fa" emissive="#60a5fa" emissiveIntensity={0.32} />
       </mesh>
+
+      {hasCableRiser && (
+        <QuadraticBezierLine
+          start={[0, -0.3, 0]}
+          mid={[1.0, 0.15, 0.2]}
+          end={[1.1, 0.5, 0]}
+          color="#374151"
+          lineWidth={2}
+          transparent
+          opacity={0.85}
+        />
+      )}
     </group>
   );
 }

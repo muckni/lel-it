@@ -1,9 +1,12 @@
+import { QuadraticBezierLine } from "@react-three/drei";
+
 interface Props {
   position: [number, number, number];
   rotationY?: number;
+  hasCableRiser?: boolean;
 }
 
-export function MonopileAsset({ position, rotationY = 0 }: Props) {
+export function MonopileAsset({ position, rotationY = 0, hasCableRiser = false }: Props) {
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       <mesh position={[0, -5, 0]}>
@@ -48,6 +51,18 @@ export function MonopileAsset({ position, rotationY = 0 }: Props) {
           </mesh>
         );
       })}
+
+      {hasCableRiser && (
+        <QuadraticBezierLine
+          start={[0, -0.3, 0]}
+          mid={[0.75, 0.65, 0.2]}
+          end={[0.8, 1.8, 0]}
+          color="#374151"
+          lineWidth={2}
+          transparent
+          opacity={0.85}
+        />
+      )}
     </group>
   );
 }

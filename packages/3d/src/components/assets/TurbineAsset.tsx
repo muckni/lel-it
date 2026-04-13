@@ -1,10 +1,13 @@
+import { QuadraticBezierLine } from "@react-three/drei";
+
 interface Props {
   position: [number, number, number];
   rotationY?: number;
   label?: string;
+  hasCableRiser?: boolean;
 }
 
-export function TurbineAsset({ position, rotationY = 0 }: Props) {
+export function TurbineAsset({ position, rotationY = 0, hasCableRiser = false }: Props) {
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       <mesh position={[0, 0, 0]}>
@@ -88,6 +91,18 @@ export function TurbineAsset({ position, rotationY = 0 }: Props) {
         <boxGeometry args={[0.3, 0.3, 0.2]} />
         <meshStandardMaterial color="#374151" roughness={0.45} metalness={0.2} />
       </mesh>
+
+      {hasCableRiser && (
+        <QuadraticBezierLine
+          start={[0, -9.3, 0]}
+          mid={[0.45, -8.9, -0.25]}
+          end={[0, -8.4, -0.5]}
+          color="#374151"
+          lineWidth={2}
+          transparent
+          opacity={0.85}
+        />
+      )}
 
       <mesh position={[0, 10.45, -0.2]}>
         <cylinderGeometry args={[0.025, 0.025, 0.8, 8]} />

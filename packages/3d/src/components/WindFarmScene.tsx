@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { OrbitControls, Grid, Environment, Stats } from "@react-three/drei";
+import { OrbitControls, Grid, Stats } from "@react-three/drei";
 import * as THREE from "three";
 import { ASSET_ANCHOR_CATALOG } from "@owit/shared";
 import { TurbineAsset } from "./assets/TurbineAsset";
@@ -18,17 +18,43 @@ import { InterfacePointMarkers } from "./InterfacePointMarkers";
 import { MeasurementTool } from "./MeasurementTool";
 import type { WindFarmSceneProps, CameraControl, CameraState } from "../types";
 
-function SeaPlane() {
+function SeaSurface() {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const geo = mesh.geometry as THREE.BufferGeometry;
+    const pos = geo.attributes.position;
+    const t = clock.elapsedTime * 0.4;
+    for (let i = 0; i < pos.count; i += 1) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      pos.setY(i, Math.sin(x * 0.3 + t) * 0.1 + Math.sin(z * 0.4 + t * 0.7) * 0.08);
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+  });
+
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
-      <planeGeometry args={[200, 200]} />
+    <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+      <planeGeometry args={[300, 300, 50, 50]} />
       <meshStandardMaterial
-        color="#1e40af"
+        color="#1E40AF"
         transparent
-        opacity={0.35}
-        roughness={0.1}
+        opacity={0.7}
+        roughness={0.2}
         metalness={0.1}
       />
+    </mesh>
+  );
+}
+
+function SeabedPlane() {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -12, 0]}>
+      <planeGeometry args={[400, 400]} />
+      <meshStandardMaterial color="#5C4A2A" roughness={0.9} />
     </mesh>
   );
 }
@@ -48,8 +74,10 @@ function lodTierFromDistance(distance: number): number {
  */
 function AssetRenderer({
   assets,
+  cabledAssetIds,
 }: {
   assets: WindFarmSceneProps["assets"];
+  cabledAssetIds: Set<string>;
 }) {
   const { camera } = useThree();
 
@@ -110,23 +138,64 @@ function AssetRenderer({
         switch (a.assetType) {
           case "turbine":
             return (
-              <TurbineAsset key={a.id} position={pos} rotationY={a.rotationY} label={a.label} />
+              <TurbineAsset
+                key={a.id}
+                position={pos}
+                rotationY={a.rotationY}
+                label={a.label}
+                hasCableRiser={cabledAssetIds.has(a.id)}
+              />
             );
           case "foundation": {
             const variant = a.foundationVariant;
             if (variant === "monopile_tpless") {
-              return <MonopileTPlessAsset key={a.id} position={pos} rotationY={a.rotationY} />;
+              return (
+                <MonopileTPlessAsset
+                  key={a.id}
+                  position={pos}
+                  rotationY={a.rotationY}
+                  hasCableRiser={cabledAssetIds.has(a.id)}
+                />
+              );
             }
             if (variant === "jacket") {
-              return <JacketFoundationAsset key={a.id} position={pos} rotationY={a.rotationY} />;
+              return (
+                <JacketFoundationAsset
+                  key={a.id}
+                  position={pos}
+                  rotationY={a.rotationY}
+                  hasCableRiser={cabledAssetIds.has(a.id)}
+                />
+              );
             }
             if (variant === "tripod") {
-              return <TripodAsset key={a.id} position={pos} rotationY={a.rotationY} />;
+              return (
+                <TripodAsset
+                  key={a.id}
+                  position={pos}
+                  rotationY={a.rotationY}
+                  hasCableRiser={cabledAssetIds.has(a.id)}
+                />
+              );
             }
             if (variant === "pinpile") {
-              return <PinpileCapAsset key={a.id} position={pos} rotationY={a.rotationY} />;
+              return (
+                <PinpileCapAsset
+                  key={a.id}
+                  position={pos}
+                  rotationY={a.rotationY}
+                  hasCableRiser={cabledAssetIds.has(a.id)}
+                />
+              );
             }
-            return <MonopileAsset key={a.id} position={pos} rotationY={a.rotationY} />;
+            return (
+              <MonopileAsset
+                key={a.id}
+                position={pos}
+                rotationY={a.rotationY}
+                hasCableRiser={cabledAssetIds.has(a.id)}
+              />
+            );
           }
           case "oss":
             return (
@@ -280,6 +349,10 @@ export function WindFarmScene({
   });
 
   const isRepresentative = sceneMode === "representative";
+  const cabledAssetIds = useMemo(
+    () => new Set((cableRoutes ?? []).flatMap((route) => [route.fromAssetId, route.toAssetId])),
+    [cableRoutes]
+  );
   const representativeAnchors = (anchorCatalog ?? ASSET_ANCHOR_CATALOG[focusAssetType]).map((anchor) => ({
     key: anchor.key,
     label: anchor.label,
@@ -314,25 +387,23 @@ export function WindFarmScene({
       gl={{ antialias: true }}
       style={{ background: "#0f172a" }}
     >
+      <fog attach="fog" args={["#0f172a", 80, 220]} />
+      <SeaSurface />
+      <SeabedPlane />
+
       <Suspense fallback={null}>
         {/* Performance stats overlay (dev only) */}
         {showStats && <Stats />}
 
         {/* Lighting */}
-        <ambientLight intensity={0.6} />
+        <ambientLight intensity={0.4} />
         <directionalLight
-          position={[40, 60, 20]}
+          position={[50, 100, 50]}
           intensity={1.2}
           castShadow
           shadow-mapSize={[2048, 2048]}
         />
-        <hemisphereLight args={["#87CEEB", "#1e3a5f", 0.4]} />
-
-        {/* Environment */}
-        <fog attach="fog" args={["#0f172a", 80, 200]} />
-
-        {/* Sea */}
-        <SeaPlane />
+        <hemisphereLight args={["#87CEEB", "#1E40AF", 0.3]} />
 
         {/* Grid for reference */}
         <Grid
@@ -351,7 +422,7 @@ export function WindFarmScene({
           <RepresentativeAsset assetType={focusAssetType} modelUrl={representativeModelUrl} />
         ) : (
           <>
-            <AssetRenderer assets={assets} />
+            <AssetRenderer assets={assets} cabledAssetIds={cabledAssetIds} />
             {cableRoutes.map((route) => {
               const fromAsset = assets.find((a) => a.id === route.fromAssetId);
               const toAsset = assets.find((a) => a.id === route.toAssetId);
