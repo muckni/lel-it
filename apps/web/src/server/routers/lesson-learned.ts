@@ -139,7 +139,19 @@ export const lessonLearnedRouter = createTRPCRouter({
           workPackage: { columns: { id: true, code: true, name: true, color: true } },
           linkedPoints: {
             with: {
-              interfacePoint: { columns: { id: true, code: true, title: true } },
+              interfacePoint: {
+                columns: { id: true, code: true, title: true },
+                with: {
+                  agreement: {
+                    columns: { id: true },
+                    with: {
+                      register: {
+                        columns: { id: true },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
           changeRequests: {
@@ -173,7 +185,17 @@ export const lessonLearnedRouter = createTRPCRouter({
           workPackage: { columns: { id: true, code: true, name: true, color: true } },
           linkedPoints: {
             with: {
-              interfacePoint: { columns: { id: true, code: true, title: true } },
+              interfacePoint: {
+                columns: { id: true, code: true, title: true },
+                with: {
+                  agreement: {
+                    columns: { id: true },
+                    with: {
+                      register: { columns: { id: true } },
+                    },
+                  },
+                },
+              },
             },
           },
           changeRequests: {
