@@ -173,6 +173,17 @@ function isFoundationFocus(assetType: FocusedAssetType) {
   );
 }
 
+function focusFromProjectSetup(setup: {
+  foundationType?: string;
+  hasOssInterface?: boolean;
+} | undefined): FocusedAssetType {
+  if (!setup) return "turbine";
+  if (setup.foundationType === "jacket") return "jacket";
+  if (setup.foundationType === "monopile_without_tp") return "monopile_tpless";
+  if (setup.foundationType === "other") return setup.hasOssInterface ? "oss" : "turbine";
+  return "monopile";
+}
+
 export default function ThreeDViewPage() {
   const params = useParams();
   const router = useRouter();
@@ -312,6 +323,9 @@ export default function ThreeDViewPage() {
   const { data: allPoints = [] } = useQuery(
     trpc.interfacePoint.listByProject.queryOptions({ projectId })
   );
+  const { data: project } = useQuery(
+    trpc.project.getById.queryOptions({ id: projectId })
+  );
 
   const { data: registryModels = [] } = useQuery({
     ...trpc.modelRegistry.list.queryOptions({
@@ -320,6 +334,18 @@ export default function ThreeDViewPage() {
     }),
     enabled: featureFlags.threeDModelRegistry,
   });
+
+  useEffect(() => {
+    if (searchParams.get("asset")) return;
+    if (sceneMode !== "representative") return;
+
+    const setup = (
+      project?.metadata as { setup?: { foundationType?: string; hasOssInterface?: boolean } }
+      | undefined
+    )?.setup;
+    if (!setup) return;
+    setFocusAssetType(focusFromProjectSetup(setup));
+  }, [project, sceneMode, searchParams]);
 
   const seedDemo = useMutation(
     trpc.assetPlacement.seedDemo.mutationOptions({

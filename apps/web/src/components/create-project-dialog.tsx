@@ -41,10 +41,26 @@ const PHASE_OPTIONS = [
   { value: "operations", label: "Operations" },
 ] as const;
 
+const FOUNDATION_TYPE_VALUES = [
+  "monopile_with_tp",
+  "monopile_without_tp",
+  "jacket",
+  "other",
+] as const;
+
+const FOUNDATION_TYPE_OPTIONS = [
+  { value: "monopile_with_tp", label: "Monopile with TP" },
+  { value: "monopile_without_tp", label: "Monopile without TP" },
+  { value: "jacket", label: "Jacket" },
+  { value: "other", label: "Other" },
+] as const;
+
 const schema = z.object({
   name: z.string().min(1, "Project name is required").max(255),
   description: z.string().optional(),
   phase: z.enum(PHASE_VALUES).optional(),
+  foundationType: z.enum(FOUNDATION_TYPE_VALUES),
+  hasOssInterface: z.boolean(),
 });
 
 type CreateProjectFormValues = z.infer<typeof schema>;
@@ -66,6 +82,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       name: "",
       description: "",
       phase: undefined,
+      foundationType: "monopile_with_tp",
+      hasOssInterface: true,
     },
   });
 
@@ -97,6 +115,10 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
         name: values.name.trim(),
         description: values.description?.trim() || undefined, // intentionally coerces "" to undefined
         phase: values.phase ?? undefined,
+        setup: {
+          foundationType: values.foundationType,
+          hasOssInterface: values.hasOssInterface,
+        },
       });
 
       await queryClient.invalidateQueries(trpc.portfolio.list.queryOptions());
@@ -161,6 +183,48 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                     {option.label}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Foundation / location type</Label>
+            <Select
+              value={form.watch("foundationType")}
+              onValueChange={(value) =>
+                form.setValue("foundationType", value as CreateProjectFormValues["foundationType"])
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select foundation type" />
+              </SelectTrigger>
+              <SelectContent>
+                {FOUNDATION_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {form.formState.errors.foundationType && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.foundationType.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>OSS interface</Label>
+            <Select
+              value={form.watch("hasOssInterface") ? "yes" : "no"}
+              onValueChange={(value) => form.setValue("hasOssInterface", value === "yes")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select OSS interface" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yes">Yes</SelectItem>
+                <SelectItem value="no">No</SelectItem>
               </SelectContent>
             </Select>
           </div>

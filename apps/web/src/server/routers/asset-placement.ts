@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
-import { db, assetPlacements } from "@owit/db";
+import { db, assetPlacements, projects } from "@owit/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { assertMember, requireRole } from "@/server/lib/rbac";
 import { projectIdForAssetPlacement } from "@/server/lib/project-id";
@@ -275,16 +275,35 @@ export const assetPlacementRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       await requireRole(ctx.user.id, input.projectId, "editor");
 
-      const placements = [];
-      placements.push({
-        projectId: input.projectId,
-        assetType: "oss" as const,
-        label: "OSS-01",
-        positionX: -30,
-        positionY: 2,
-        positionZ: 0,
-        rotationY: 0,
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, input.projectId),
+        columns: { metadata: true },
       });
+
+      const setup = (project?.metadata as Record<string, unknown> | null)?.setup as
+        | { foundationType?: string; hasOssInterface?: boolean }
+        | undefined;
+
+      const foundationVariant =
+        setup?.foundationType === "monopile_without_tp"
+          ? "monopile_tpless"
+          : setup?.foundationType === "jacket"
+            ? "jacket"
+            : "monopile";
+      const hasOssInterface = setup?.hasOssInterface ?? true;
+
+      const placements = [];
+      if (hasOssInterface) {
+        placements.push({
+          projectId: input.projectId,
+          assetType: "oss" as const,
+          label: "OSS-01",
+          positionX: -30,
+          positionY: 2,
+          positionZ: 0,
+          rotationY: 0,
+        });
+      }
 
       let t = 1;
       for (let row = 0; row < 3; row++) {
@@ -308,6 +327,7 @@ export const assetPlacementRouter = createTRPCRouter({
             positionY: 0,
             positionZ: z,
             rotationY: 0,
+            metadata: { foundationVariant },
           });
           t++;
         }

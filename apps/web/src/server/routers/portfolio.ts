@@ -34,6 +34,15 @@ export const portfolioRouter = createTRPCRouter({
           "maturation", "feed", "detailed_design", "procurement",
           "fabrication", "installation", "commissioning", "operations",
         ]).optional(),
+        setup: z.object({
+          foundationType: z.enum([
+            "monopile_with_tp",
+            "monopile_without_tp",
+            "jacket",
+            "other",
+          ]),
+          hasOssInterface: z.boolean(),
+        }),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -54,6 +63,9 @@ export const portfolioRouter = createTRPCRouter({
             name: input.name,
             description: input.description,
             phase: input.phase,
+            metadata: {
+              setup: input.setup,
+            },
           })
           .returning();
 
