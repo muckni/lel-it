@@ -31,16 +31,20 @@ const turbineAnchors = [
 ] as const satisfies readonly AssetAnchorDefinition[];
 
 const ossAnchors = [
-  { key: "jacket_leg_nw", label: "Jacket Leg NW", position: [-2, -1.5, -2] as [number, number, number] },
-  { key: "jacket_leg_ne", label: "Jacket Leg NE", position: [2, -1.5, -2] as [number, number, number] },
-  { key: "jacket_leg_sw", label: "Jacket Leg SW", position: [-2, -1.5, 2] as [number, number, number] },
-  { key: "jacket_leg_se", label: "Jacket Leg SE", position: [2, -1.5, 2] as [number, number, number] },
-  { key: "cable_deck", label: "Cable Deck", position: [0, 5.5, 3] as [number, number, number] },
-  { key: "hv_room", label: "HV Room", position: [1.4, 8.2, 1.2] as [number, number, number] },
-  { key: "lv_room", label: "LV Room", position: [-1.2, 8.2, 1.2] as [number, number, number] },
-  { key: "control_room", label: "Control Room", position: [0, 9.4, -1.6] as [number, number, number] },
-  { key: "transformer_area", label: "Transformer Area", position: [0, 8.2, 0] as [number, number, number] },
-  { key: "helideck", label: "Helideck", position: [-1, 12.2, 0] as [number, number, number] },
+  { key: "jacket_leg_nw", label: "Jacket Leg NW", position: [-3.5, 0, -3.5] as [number, number, number] },
+  { key: "jacket_leg_ne", label: "Jacket Leg NE", position: [3.5, 0, -3.5] as [number, number, number] },
+  { key: "jacket_leg_sw", label: "Jacket Leg SW", position: [-3.5, 0, 3.5] as [number, number, number] },
+  { key: "jacket_leg_se", label: "Jacket Leg SE", position: [3.5, 0, 3.5] as [number, number, number] },
+  { key: "cable_deck", label: "Cable Deck / J-Tube Area", position: [0, 0.5, 5] as [number, number, number] },
+  { key: "hv_room", label: "HV Switchgear Room", position: [0, 5.7, -3] as [number, number, number] },
+  { key: "lv_room", label: "LV / Control Room", position: [0, 5.7, 3] as [number, number, number] },
+  { key: "control_room", label: "Control Room", position: [0, 6.6, 3] as [number, number, number] },
+  { key: "transformer_area", label: "Transformer Bays", position: [0, 6.2, 0] as [number, number, number] },
+  { key: "helideck", label: "Helideck", position: [0, 12.2, 0] as [number, number, number] },
+  { key: "crane", label: "Crane Pedestal", position: [3, 4.4, -3] as [number, number, number] },
+  { key: "switchgear_bay_1", label: "Switchgear Bay 1", position: [-0.6, 7.0, -3] as [number, number, number] },
+  { key: "switchgear_bay_2", label: "Switchgear Bay 2", position: [0, 7.0, -3] as [number, number, number] },
+  { key: "switchgear_bay_3", label: "Switchgear Bay 3", position: [0.6, 7.0, -3] as [number, number, number] },
 ] as const satisfies readonly AssetAnchorDefinition[];
 
 const monopileAnchors = [

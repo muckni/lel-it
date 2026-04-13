@@ -80,6 +80,15 @@ export function TurbineAsset({ position, rotationY = 0 }: Props) {
         );
       })}
 
+      <mesh position={[0, -8.4, -0.9]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.18, 0.18, 0.6, 14]} />
+        <meshStandardMaterial color="#374151" roughness={0.45} metalness={0.28} />
+      </mesh>
+      <mesh position={[0, -8.4, -1.25]}>
+        <boxGeometry args={[0.3, 0.3, 0.2]} />
+        <meshStandardMaterial color="#374151" roughness={0.45} metalness={0.2} />
+      </mesh>
+
       <mesh position={[0, 10.45, -0.2]}>
         <cylinderGeometry args={[0.025, 0.025, 0.8, 8]} />
         <meshStandardMaterial color="#d0d0d0" roughness={0.35} metalness={0.25} />
