@@ -194,6 +194,16 @@ function assetTypeDisplayLabel(assetType: string) {
   return assetType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function focusedAssetTypeForPlacement(asset: {
+  assetType: string;
+  foundationVariant?: "monopile" | "monopile_tpless" | "jacket" | "tripod" | "pinpile" | null;
+}): FocusedAssetType | null {
+  if (asset.assetType === "turbine") return "turbine";
+  if (asset.assetType === "oss") return "oss";
+  if (asset.assetType === "foundation") return asset.foundationVariant ?? "monopile";
+  return null;
+}
+
 export default function ThreeDViewPage() {
   const params = useParams();
   const router = useRouter();
@@ -701,19 +711,49 @@ export default function ThreeDViewPage() {
         )
       : filteredByAsset;
 
-    return impactedFiltered.map((point) => ({
-      id: point.id,
-      code: point.code,
-      title: point.title,
-      status: point.status,
-      criticality: point.criticality,
-      dueDate: point.dueDate ?? null,
-      assetType: point.assetType ?? null,
-      assetPositionRef: point.assetPositionRef ?? null,
-      spatialX: point.spatialX ?? null,
-      spatialY: point.spatialY ?? null,
-      spatialZ: point.spatialZ ?? null,
-    }));
+    return impactedFiltered.map((point) => {
+      if (
+        selectedAsset &&
+        point.assetPositionRef &&
+        point.spatialX == null &&
+        point.spatialY == null &&
+        point.spatialZ == null
+      ) {
+        const focusedType = focusedAssetTypeForPlacement(selectedAsset);
+        const anchor = focusedType
+          ? ASSET_ANCHOR_CATALOG[focusedType].find((entry) => entry.key === point.assetPositionRef)
+          : null;
+        if (anchor) {
+          return {
+            id: point.id,
+            code: point.code,
+            title: point.title,
+            status: point.status,
+            criticality: point.criticality,
+            dueDate: point.dueDate ?? null,
+            assetType: point.assetType ?? null,
+            assetPositionRef: point.assetPositionRef ?? null,
+            spatialX: selectedAsset.positionX + anchor.position[0],
+            spatialY: selectedAsset.positionY + anchor.position[1],
+            spatialZ: selectedAsset.positionZ + anchor.position[2],
+          };
+        }
+      }
+
+      return {
+        id: point.id,
+        code: point.code,
+        title: point.title,
+        status: point.status,
+        criticality: point.criticality,
+        dueDate: point.dueDate ?? null,
+        assetType: point.assetType ?? null,
+        assetPositionRef: point.assetPositionRef ?? null,
+        spatialX: point.spatialX ?? null,
+        spatialY: point.spatialY ?? null,
+        spatialZ: point.spatialZ ?? null,
+      };
+    });
   }, [allProjectPoints, selectedAsset, showImpactedOnly, sceneMode, focusAssetType]);
 
   const selectedPoint = allProjectPoints.find((point) => point.id === selectedPointId);
@@ -1126,10 +1166,22 @@ export default function ThreeDViewPage() {
               {selectedPoint.dueDate && (
                 <p className="mt-1 text-xs text-muted-foreground">Due: {selectedPoint.dueDate}</p>
               )}
+              {canEdit && !selectedPoint.assetPositionRef && sceneMode === "representative" && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="mt-3 h-7 w-full text-xs"
+                  onClick={() => {
+                    setMappingPointId(selectedPoint.id);
+                  }}
+                >
+                  Map This Topic
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"
-                className="mt-3 h-7 w-full text-xs"
+                className={`${canEdit && !selectedPoint.assetPositionRef && sceneMode === "representative" ? "mt-2" : "mt-3"} h-7 w-full text-xs`}
                 onClick={() => {
                   const registerId = selectedPoint.agreement?.register?.id;
                   const agreementId = selectedPoint.agreement?.id;
