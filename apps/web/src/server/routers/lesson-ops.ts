@@ -19,6 +19,7 @@ import {
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { assertMember, requireRole } from "@/server/lib/rbac";
 import { requireLessonRole } from "@/server/lib/lesson-rbac";
+import { getVisibleLessonOwnershipStates } from "@/server/lib/lesson-visibility";
 import {
   calculateTrackAApprovalLevel,
   deriveCycleMilestones,
@@ -93,11 +94,20 @@ async function getPolicyProfile(projectId: string) {
   return created;
 }
 
-async function computeGateReadiness(projectId: string) {
+async function computeGateReadiness(
+  projectId: string,
+  visibleOwnershipStates?: string[]
+) {
+  const visibilityFilter = visibleOwnershipStates
+    ? inArray(lessonsLearned.ownershipState, visibleOwnershipStates as any)
+    : undefined;
+
   const lessons = await db.query.lessonsLearned.findMany({
-    where: eq(lessonsLearned.projectId, projectId),
-    columns: { id: true, workflowState: true },
+    where: and(eq(lessonsLearned.projectId, projectId), visibilityFilter),
+    columns: { id: true, workflowState: true, ownershipState: true },
   });
+
+  const visibleLessonIds = lessons.map((row) => row.id);
 
   const triaged = lessons.filter((row) => row.workflowState !== "ingested").length;
   const clustered = lessons.filter((row) => ["clustered", "classified", "actioned", "report_ready"].includes(row.workflowState)).length;
@@ -105,15 +115,29 @@ async function computeGateReadiness(projectId: string) {
   const actioned = lessons.filter((row) => ["actioned", "report_ready"].includes(row.workflowState)).length;
   const reportReady = lessons.filter((row) => row.workflowState === "report_ready").length;
 
-  const trackAWithoutOwner = await db
-    .select({ count: count() })
-    .from(lessonTrackAActions)
-    .where(and(eq(lessonTrackAActions.projectId, projectId), isNull(lessonTrackAActions.ownerUserId)));
+  const trackAWithoutOwner = visibleLessonIds.length
+    ? await db
+        .select({ count: count() })
+        .from(lessonTrackAActions)
+        .where(
+          and(
+            eq(lessonTrackAActions.projectId, projectId),
+            isNull(lessonTrackAActions.ownerUserId),
+            inArray(lessonTrackAActions.lessonId, visibleLessonIds)
+          )
+        )
+    : [{ count: 0 }];
 
-  const doneActions = await db.query.lessonTrackAActions.findMany({
-    where: and(eq(lessonTrackAActions.projectId, projectId), eq(lessonTrackAActions.status, "done")),
-    columns: { id: true },
-  });
+  const doneActions = visibleLessonIds.length
+    ? await db.query.lessonTrackAActions.findMany({
+        where: and(
+          eq(lessonTrackAActions.projectId, projectId),
+          eq(lessonTrackAActions.status, "done"),
+          inArray(lessonTrackAActions.lessonId, visibleLessonIds)
+        ),
+        columns: { id: true },
+      })
+    : [];
   const doneIds = doneActions.map((row) => row.id);
   const evidenceCounts = doneIds.length
     ? await db
@@ -125,15 +149,18 @@ async function computeGateReadiness(projectId: string) {
   const withEvidence = new Set(evidenceCounts.map((row) => row.actionId));
   const doneWithoutEvidence = doneActions.filter((row) => !withEvidence.has(row.id)).length;
 
-  const pendingTrackB = await db
-    .select({ count: count() })
-    .from(lessonTrackBEscalations)
-    .where(
-      and(
-        eq(lessonTrackBEscalations.projectId, projectId),
-        inArray(lessonTrackBEscalations.status, ["draft", "submitted"]) 
-      )
-    );
+  const pendingTrackB = visibleLessonIds.length
+    ? await db
+        .select({ count: count() })
+        .from(lessonTrackBEscalations)
+        .where(
+          and(
+            eq(lessonTrackBEscalations.projectId, projectId),
+            inArray(lessonTrackBEscalations.status, ["draft", "submitted"]),
+            inArray(lessonTrackBEscalations.lessonId, visibleLessonIds)
+          )
+        )
+    : [{ count: 0 }];
 
   const untriaged = lessons.filter((row) => row.workflowState === "ingested").length;
   const unclassified = lessons.filter((row) => ["ingested", "triaged", "clustered"].includes(row.workflowState)).length;
@@ -178,11 +205,16 @@ export const lessonOpsRouter = createTRPCRouter({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
       await assertMember(ctx.user.id, input.projectId);
+      const visibleOwnershipStates = await getVisibleLessonOwnershipStates(
+        input.projectId,
+        ctx.user.id
+      );
 
       return db.query.lessonsLearned.findMany({
         where: and(
           eq(lessonsLearned.projectId, input.projectId),
-          eq(lessonsLearned.workflowState, "ingested")
+          eq(lessonsLearned.workflowState, "ingested"),
+          inArray(lessonsLearned.ownershipState, visibleOwnershipStates as any)
         ),
         with: {
           linkedPoints: {
@@ -821,7 +853,11 @@ export const lessonOpsRouter = createTRPCRouter({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
       await assertMember(ctx.user.id, input.projectId);
-      return computeGateReadiness(input.projectId);
+      const visibleOwnershipStates = await getVisibleLessonOwnershipStates(
+        input.projectId,
+        ctx.user.id
+      );
+      return computeGateReadiness(input.projectId, visibleOwnershipStates);
     }),
 
   startCycle: protectedProcedure
@@ -885,7 +921,11 @@ export const lessonOpsRouter = createTRPCRouter({
       await requireLessonRole(input.projectId, ctx.user.id, ["ll_manager", "pmo_director"]);
 
       if (input.state === "completed") {
-        const readiness = await computeGateReadiness(input.projectId);
+        const visibleOwnershipStates = await getVisibleLessonOwnershipStates(
+          input.projectId,
+          ctx.user.id
+        );
+        const readiness = await computeGateReadiness(input.projectId, visibleOwnershipStates);
         if (!readiness.isGateReady) {
           throw new TRPCError({
             code: "PRECONDITION_FAILED",
@@ -912,37 +952,61 @@ export const lessonOpsRouter = createTRPCRouter({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
       await assertMember(ctx.user.id, input.projectId);
-      return db.query.lessonClusters.findMany({
+      const visibleOwnershipStates = await getVisibleLessonOwnershipStates(
+        input.projectId,
+        ctx.user.id
+      );
+
+      const rows = await db.query.lessonClusters.findMany({
         where: eq(lessonClusters.projectId, input.projectId),
         with: {
           clusterItems: {
             with: {
-              lesson: { columns: { id: true, title: true, workflowState: true } },
+              lesson: { columns: { id: true, title: true, workflowState: true, ownershipState: true } },
             },
           },
           package: { columns: { id: true, code: true, name: true } },
         },
         orderBy: [desc(lessonClusters.createdAt)],
       });
+
+      return rows
+        .map((row) => ({
+          ...row,
+          clusterItems: row.clusterItems.filter((item) =>
+            visibleOwnershipStates.includes(item.lesson.ownershipState as any)
+          ),
+        }))
+        .filter((row) => row.clusterItems.length > 0);
     }),
 
   listTrackA: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
       await assertMember(ctx.user.id, input.projectId);
+      const visibleOwnershipStates = await getVisibleLessonOwnershipStates(
+        input.projectId,
+        ctx.user.id
+      );
 
       const today = new Date();
       const actions = await db.query.lessonTrackAActions.findMany({
         where: eq(lessonTrackAActions.projectId, input.projectId),
         with: {
-          lesson: { columns: { id: true, title: true } },
+          lesson: { columns: { id: true, title: true, ownershipState: true } },
           cluster: { columns: { id: true, clusterName: true, trackType: true } },
           evidence: { columns: { id: true } },
         },
         orderBy: [asc(lessonTrackAActions.dueAt), desc(lessonTrackAActions.createdAt)],
       });
 
-      for (const action of actions) {
+      const visibleActions = actions.filter((action) =>
+        action.lesson
+          ? visibleOwnershipStates.includes(action.lesson.ownershipState as any)
+          : true
+      );
+
+      for (const action of visibleActions) {
         if (action.status !== "done" && action.dueAt && action.dueAt < today) {
           await db
             .update(lessonTrackAActions)
@@ -952,24 +1016,33 @@ export const lessonOpsRouter = createTRPCRouter({
         }
       }
 
-      return actions;
+      return visibleActions;
     }),
 
   listTrackB: protectedProcedure
     .input(z.object({ projectId: z.string().uuid(), status: escalationStatusSchema.optional() }))
     .query(async ({ input, ctx }) => {
       await assertMember(ctx.user.id, input.projectId);
-      return db.query.lessonTrackBEscalations.findMany({
+      const visibleOwnershipStates = await getVisibleLessonOwnershipStates(
+        input.projectId,
+        ctx.user.id
+      );
+
+      const rows = await db.query.lessonTrackBEscalations.findMany({
         where: and(
           eq(lessonTrackBEscalations.projectId, input.projectId),
           input.status ? eq(lessonTrackBEscalations.status, input.status) : undefined
         ),
         with: {
-          lesson: { columns: { id: true, title: true } },
+          lesson: { columns: { id: true, title: true, ownershipState: true } },
           cluster: { columns: { id: true, clusterName: true } },
         },
         orderBy: [desc(lessonTrackBEscalations.createdAt)],
       });
+
+      return rows.filter((row) =>
+        row.lesson ? visibleOwnershipStates.includes(row.lesson.ownershipState as any) : true
+      );
     }),
 
   listCycles: protectedProcedure
@@ -986,22 +1059,50 @@ export const lessonOpsRouter = createTRPCRouter({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
       await assertMember(ctx.user.id, input.projectId);
-      const readiness = await computeGateReadiness(input.projectId);
+      const visibleOwnershipStates = await getVisibleLessonOwnershipStates(
+        input.projectId,
+        ctx.user.id
+      );
+      const readiness = await computeGateReadiness(input.projectId, visibleOwnershipStates);
+
+      const visibleLessonIds = await db.query.lessonsLearned.findMany({
+        where: and(
+          eq(lessonsLearned.projectId, input.projectId),
+          inArray(lessonsLearned.ownershipState, visibleOwnershipStates as any)
+        ),
+        columns: { id: true },
+      }).then((rows) => rows.map((row) => row.id));
 
       const openCycle = await db.query.lessonCycles.findFirst({
         where: and(eq(lessonCycles.projectId, input.projectId), eq(lessonCycles.state, "active")),
         orderBy: [desc(lessonCycles.createdAt)],
       });
 
-      const overdueActions = await db
-        .select({ count: count() })
-        .from(lessonTrackAActions)
-        .where(and(eq(lessonTrackAActions.projectId, input.projectId), eq(lessonTrackAActions.status, "overdue")));
+      const overdueActions = visibleLessonIds.length
+        ? await db
+            .select({ count: count() })
+            .from(lessonTrackAActions)
+            .where(
+              and(
+                eq(lessonTrackAActions.projectId, input.projectId),
+                eq(lessonTrackAActions.status, "overdue"),
+                inArray(lessonTrackAActions.lessonId, visibleLessonIds)
+              )
+            )
+        : [{ count: 0 }];
 
-      const pendingEscalations = await db
-        .select({ count: count() })
-        .from(lessonTrackBEscalations)
-        .where(and(eq(lessonTrackBEscalations.projectId, input.projectId), inArray(lessonTrackBEscalations.status, ["draft", "submitted"])));
+      const pendingEscalations = visibleLessonIds.length
+        ? await db
+            .select({ count: count() })
+            .from(lessonTrackBEscalations)
+            .where(
+              and(
+                eq(lessonTrackBEscalations.projectId, input.projectId),
+                inArray(lessonTrackBEscalations.status, ["draft", "submitted"]),
+                inArray(lessonTrackBEscalations.lessonId, visibleLessonIds)
+              )
+            )
+        : [{ count: 0 }];
 
       return {
         ...readiness,

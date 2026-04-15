@@ -1,6 +1,13 @@
 "use client";
 
-import { LESSON_STATUSES, LESSON_TYPES, type LessonStatus, type LessonType } from "@owit/shared";
+import {
+  LESSON_OWNERSHIP_STATES,
+  LESSON_STATUSES,
+  LESSON_TYPES,
+  type LessonOwnershipState,
+  type LessonStatus,
+  type LessonType,
+} from "@owit/shared";
 import { Badge } from "@/components/ui/badge";
 
 const STATUS_LABEL: Record<LessonStatus, string> = {
@@ -33,6 +40,20 @@ const TYPE_CLASS: Record<LessonType, string> = {
   process_deviation: "bg-orange-100 text-orange-800",
 };
 
+const OWNERSHIP_LABEL: Record<LessonOwnershipState, string> = {
+  permissive: "Permissive",
+  restricted: "Restricted",
+  prohibited: "Prohibited",
+  unclear: "Unclear",
+};
+
+const OWNERSHIP_CLASS: Record<LessonOwnershipState, string> = {
+  permissive: "bg-emerald-100 text-emerald-800",
+  restricted: "bg-amber-100 text-amber-800",
+  prohibited: "bg-rose-100 text-rose-800",
+  unclear: "bg-slate-100 text-slate-700",
+};
+
 export function LLStatusBadge({ status }: { status: LessonStatus }) {
   return (
     <Badge className={STATUS_CLASS[status] ?? STATUS_CLASS.draft}>
@@ -49,6 +70,14 @@ export function LLTypeBadge({ type }: { type: LessonType }) {
   );
 }
 
+export function LLOwnershipBadge({ ownershipState }: { ownershipState: LessonOwnershipState }) {
+  return (
+    <Badge variant="outline" className={OWNERSHIP_CLASS[ownershipState] ?? OWNERSHIP_CLASS.permissive}>
+      {OWNERSHIP_LABEL[ownershipState] ?? ownershipState}
+    </Badge>
+  );
+}
+
 export const LESSON_STATUS_OPTIONS = LESSON_STATUSES.map((value) => ({
   value,
   label: STATUS_LABEL[value],
@@ -57,4 +86,9 @@ export const LESSON_STATUS_OPTIONS = LESSON_STATUSES.map((value) => ({
 export const LESSON_TYPE_OPTIONS = LESSON_TYPES.map((value) => ({
   value,
   label: TYPE_LABEL[value],
+}));
+
+export const LESSON_OWNERSHIP_OPTIONS = LESSON_OWNERSHIP_STATES.map((value) => ({
+  value,
+  label: OWNERSHIP_LABEL[value],
 }));

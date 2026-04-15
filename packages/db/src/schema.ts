@@ -249,6 +249,13 @@ export const llChangeRequestStatusEnum = pgEnum("ll_change_request_status", [
   "rejected",
 ]);
 
+export const llOwnershipStateEnum = pgEnum("ll_ownership_state", [
+  "permissive",
+  "restricted",
+  "prohibited",
+  "unclear",
+]);
+
 export const lessonWorkflowStateEnum = pgEnum("lesson_workflow_state", [
   "ingested",
   "triaged",
@@ -1317,6 +1324,10 @@ export const lessonsLearned = pgTable(
     workPackageId: uuid("work_package_id").references(() => workPackages.id, {
       onDelete: "set null",
     }),
+    ownershipState: llOwnershipStateEnum("ownership_state").notNull().default("permissive"),
+    ownershipChangedById: uuid("ownership_changed_by_id"),
+    ownershipChangedAt: timestamp("ownership_changed_at", { withTimezone: true }),
+    ownershipRationale: text("ownership_rationale"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1328,6 +1339,7 @@ export const lessonsLearned = pgTable(
     index("lessons_learned_project_id_idx").on(table.projectId),
     index("lessons_learned_project_status_idx").on(table.projectId, table.status),
     index("lessons_learned_project_discipline_idx").on(table.projectId, table.discipline),
+    index("lessons_learned_project_ownership_idx").on(table.projectId, table.ownershipState),
   ]
 );
 

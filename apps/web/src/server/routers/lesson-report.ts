@@ -13,6 +13,7 @@ import {
   workPackages,
 } from "@owit/db";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getVisibleLessonOwnershipStates } from "@/server/lib/lesson-visibility";
 import { assertMember } from "@/server/lib/rbac";
 import { requireLessonRole } from "@/server/lib/lesson-rbac";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
@@ -61,6 +62,10 @@ export const lessonReportRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       await requireLessonRole(input.projectId, ctx.user.id, ["ll_manager", "pmo_director"]);
+      const visibleOwnershipStates = await getVisibleLessonOwnershipStates(
+        input.projectId,
+        ctx.user.id
+      );
 
       const [project, packageRow] = await Promise.all([
         db.query.projects.findFirst({
@@ -81,6 +86,7 @@ export const lessonReportRouter = createTRPCRouter({
       if (input.packageId) {
         whereCommon.push(eq(lessonsLearned.workPackageId, input.packageId));
       }
+      whereCommon.push(inArray(lessonsLearned.ownershipState, visibleOwnershipStates));
 
       const lessons = await db.query.lessonsLearned.findMany({
         where: and(...whereCommon),

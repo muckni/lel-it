@@ -228,6 +228,14 @@ export const LESSON_CHANGE_REQUEST_STATUSES = [
 export type LessonChangeRequestStatus =
   (typeof LESSON_CHANGE_REQUEST_STATUSES)[number];
 
+export const LESSON_OWNERSHIP_STATES = [
+  "permissive",
+  "restricted",
+  "prohibited",
+  "unclear",
+] as const;
+export type LessonOwnershipState = (typeof LESSON_OWNERSHIP_STATES)[number];
+
 export const LESSON_WORKFLOW_STATES = [
   "ingested",
   "triaged",

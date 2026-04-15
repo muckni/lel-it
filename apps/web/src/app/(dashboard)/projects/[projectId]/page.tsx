@@ -1,21 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useEffect } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpenIcon, LayersIcon, ListIcon, MessageSquareIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PROJECT_MODULES, type ProjectModuleKey } from "@/lib/project-modules";
 import { useTRPC } from "@/trpc/client";
 
 export default function ProjectModuleSelectorPage() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const projectId = params.projectId as string;
   const trpc = useTRPC();
+  const forceSelector = searchParams.get("select") === "1";
 
   const { data: project, isLoading } = useQuery(
     trpc.project.getById.queryOptions({ id: projectId })
   );
+
+  useEffect(() => {
+    if (!project || forceSelector || typeof window === "undefined") return;
+
+    const key = `owit.project.${projectId}.module`;
+    const remembered = window.localStorage.getItem(key) as ProjectModuleKey | null;
+    if (remembered && remembered in PROJECT_MODULES) {
+      router.replace(`/projects/${projectId}/modules/${remembered}`);
+    }
+  }, [forceSelector, project, projectId, router]);
 
   if (isLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;

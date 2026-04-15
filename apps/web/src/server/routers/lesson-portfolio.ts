@@ -8,6 +8,7 @@ import {
   portfolios,
   projects,
 } from "@owit/db";
+import { getVisibleLessonOwnershipStates } from "@/server/lib/lesson-visibility";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 
 async function portfolioIdForUser(userId: string) {
@@ -74,8 +75,20 @@ export const lessonPortfolioRouter = createTRPCRouter({
         ),
     ]);
 
+    const visibilityByProject = new Map<string, Awaited<ReturnType<typeof getVisibleLessonOwnershipStates>>>();
+    await Promise.all(
+      portfolioProjects.map(async (project) => {
+        visibilityByProject.set(
+          project.id,
+          await getVisibleLessonOwnershipStates(project.id, ctx.user.id)
+        );
+      })
+    );
+
     const projectRows = await Promise.all(
       portfolioProjects.map(async (project) => {
+        const visibleOwnershipStates =
+          visibilityByProject.get(project.id) ?? ["permissive"];
         const [activeCycle, overdueActions, pendingEscalations, untriaged] = await Promise.all([
           db.query.lessonCycles.findFirst({
             where: and(eq(lessonCycles.projectId, project.id), eq(lessonCycles.state, "active")),
@@ -98,7 +111,13 @@ export const lessonPortfolioRouter = createTRPCRouter({
           db
             .select({ count: count() })
             .from(lessonsLearned)
-            .where(and(eq(lessonsLearned.projectId, project.id), eq(lessonsLearned.workflowState, "ingested"))),
+            .where(
+              and(
+                eq(lessonsLearned.projectId, project.id),
+                eq(lessonsLearned.workflowState, "ingested"),
+                inArray(lessonsLearned.ownershipState, visibleOwnershipStates)
+              )
+            ),
         ]);
 
         const gateReady =
@@ -143,8 +162,20 @@ export const lessonPortfolioRouter = createTRPCRouter({
     const projectIds = projectsInPortfolio.map((project) => project.id);
     if (projectIds.length === 0) return [];
 
+    const visibilityByProject = new Map<string, Awaited<ReturnType<typeof getVisibleLessonOwnershipStates>>>();
+    await Promise.all(
+      projectsInPortfolio.map(async (project) => {
+        visibilityByProject.set(
+          project.id,
+          await getVisibleLessonOwnershipStates(project.id, ctx.user.id)
+        );
+      })
+    );
+
     const rows = await Promise.all(
       projectsInPortfolio.map(async (project) => {
+        const visibleOwnershipStates =
+          visibilityByProject.get(project.id) ?? ["permissive"];
         const [overdueActions, pendingEscalations, unresolvedUnknowns] = await Promise.all([
           db
             .select({ count: count() })
@@ -162,7 +193,13 @@ export const lessonPortfolioRouter = createTRPCRouter({
           db
             .select({ count: count() })
             .from(lessonsLearned)
-            .where(and(eq(lessonsLearned.projectId, project.id), eq(lessonsLearned.workflowState, "ingested"))),
+            .where(
+              and(
+                eq(lessonsLearned.projectId, project.id),
+                eq(lessonsLearned.workflowState, "ingested"),
+                inArray(lessonsLearned.ownershipState, visibleOwnershipStates)
+              )
+            ),
         ]);
 
         const overdueTrackAActions = overdueActions[0]?.count ?? 0;
@@ -201,11 +238,28 @@ export const lessonPortfolioRouter = createTRPCRouter({
           columns: { id: true, name: true, portfolioId: true },
         },
         lesson: {
-          columns: { id: true, title: true },
+          columns: { id: true, title: true, ownershipState: true },
         },
       },
       orderBy: [desc(lessonTrackAActions.updatedAt)],
-    }).then((rows) => rows.filter((row) => row.project.portfolioId === portfolioId));
+    }).then(async (rows) => {
+      const visibleStatesByProject = new Map<string, Awaited<ReturnType<typeof getVisibleLessonOwnershipStates>>>();
+      const projectIds = Array.from(new Set(rows.map((row) => row.project.id)));
+      await Promise.all(
+        projectIds.map(async (projectId) => {
+          visibleStatesByProject.set(
+            projectId,
+            await getVisibleLessonOwnershipStates(projectId, ctx.user.id)
+          );
+        })
+      );
+
+      return rows.filter((row) => {
+        if (row.project.portfolioId !== portfolioId) return false;
+        const visibleStates = visibleStatesByProject.get(row.project.id) ?? ["permissive"];
+        return row.lesson ? visibleStates.includes(row.lesson.ownershipState) : true;
+      });
+    });
   }),
 
   listPendingEscalations: protectedProcedure.query(async ({ ctx }) => {
@@ -219,10 +273,27 @@ export const lessonPortfolioRouter = createTRPCRouter({
           columns: { id: true, name: true, portfolioId: true },
         },
         lesson: {
-          columns: { id: true, title: true },
+          columns: { id: true, title: true, ownershipState: true },
         },
       },
       orderBy: [desc(lessonTrackBEscalations.updatedAt)],
-    }).then((rows) => rows.filter((row) => row.project.portfolioId === portfolioId));
+    }).then(async (rows) => {
+      const visibleStatesByProject = new Map<string, Awaited<ReturnType<typeof getVisibleLessonOwnershipStates>>>();
+      const projectIds = Array.from(new Set(rows.map((row) => row.project.id)));
+      await Promise.all(
+        projectIds.map(async (projectId) => {
+          visibleStatesByProject.set(
+            projectId,
+            await getVisibleLessonOwnershipStates(projectId, ctx.user.id)
+          );
+        })
+      );
+
+      return rows.filter((row) => {
+        if (row.project.portfolioId !== portfolioId) return false;
+        const visibleStates = visibleStatesByProject.get(row.project.id) ?? ["permissive"];
+        return row.lesson ? visibleStates.includes(row.lesson.ownershipState) : true;
+      });
+    });
   }),
 });

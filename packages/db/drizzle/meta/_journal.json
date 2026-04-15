@@ -85,6 +85,13 @@
       "when": 1776086837293,
       "tag": "0011_eminent_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1776252365982,
+      "tag": "0012_phase10_lessons_ownership_state",
+      "breakpoints": true
     }
   ]
 }

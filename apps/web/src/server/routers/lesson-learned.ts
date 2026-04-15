@@ -14,17 +14,20 @@ import {
 import {
   LESSON_CHANGE_REQUEST_STATUSES,
   LESSON_DISCIPLINES,
+  LESSON_OWNERSHIP_STATES,
   LESSON_STATUSES,
   LESSON_TYPES,
   PROJECT_PHASES,
 } from "@owit/shared";
 import { projectIdForLessonLearned } from "@/server/lib/project-id";
+import { getVisibleLessonOwnershipStates } from "@/server/lib/lesson-visibility";
 import { assertMember, getProjectRole, requireRole } from "@/server/lib/rbac";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 
 const lessonStatusSchema = z.enum(LESSON_STATUSES);
 const lessonTypeSchema = z.enum(LESSON_TYPES);
 const lessonDisciplineSchema = z.enum(LESSON_DISCIPLINES);
+const lessonOwnershipStateSchema = z.enum(LESSON_OWNERSHIP_STATES);
 const projectPhaseSchema = z.enum(PROJECT_PHASES);
 const changeRequestStatusSchema = z.enum(LESSON_CHANGE_REQUEST_STATUSES);
 
@@ -109,12 +112,17 @@ export const lessonLearnedRouter = createTRPCRouter({
         status: lessonStatusSchema.optional(),
         type: lessonTypeSchema.optional(),
         discipline: lessonDisciplineSchema.optional(),
+        ownershipState: lessonOwnershipStateSchema.optional(),
         interfacePointId: z.string().uuid().optional(),
         workPackageId: z.string().uuid().optional(),
       })
     )
     .query(async ({ input, ctx }) => {
       await assertMember(ctx.user.id, input.projectId);
+      const visibleOwnershipStates = await getVisibleLessonOwnershipStates(
+        input.projectId,
+        ctx.user.id
+      );
 
       let lessonIdsByPoint: string[] | undefined;
       if (input.interfacePointId) {
@@ -132,6 +140,8 @@ export const lessonLearnedRouter = createTRPCRouter({
           input.status ? eq(lessonsLearned.status, input.status) : undefined,
           input.type ? eq(lessonsLearned.type, input.type) : undefined,
           input.discipline ? eq(lessonsLearned.discipline, input.discipline) : undefined,
+          input.ownershipState ? eq(lessonsLearned.ownershipState, input.ownershipState) : undefined,
+          inArray(lessonsLearned.ownershipState, visibleOwnershipStates),
           input.workPackageId ? eq(lessonsLearned.workPackageId, input.workPackageId) : undefined,
           lessonIdsByPoint ? inArray(lessonsLearned.id, lessonIdsByPoint) : undefined
         ),
@@ -179,8 +189,15 @@ export const lessonLearnedRouter = createTRPCRouter({
     .query(async ({ input, ctx }) => {
       const projectId = await projectIdForLessonLearned(input.id);
       await assertMember(ctx.user.id, projectId);
+      const visibleOwnershipStates = await getVisibleLessonOwnershipStates(
+        projectId,
+        ctx.user.id
+      );
       const row = await db.query.lessonsLearned.findFirst({
-        where: eq(lessonsLearned.id, input.id),
+        where: and(
+          eq(lessonsLearned.id, input.id),
+          inArray(lessonsLearned.ownershipState, visibleOwnershipStates)
+        ),
         with: {
           workPackage: { columns: { id: true, code: true, name: true, color: true } },
           linkedPoints: {
@@ -219,6 +236,7 @@ export const lessonLearnedRouter = createTRPCRouter({
         projectPhase: projectPhaseSchema.optional(),
         workPackageId: z.string().uuid().optional(),
         interfacePointIds: z.array(z.string().uuid()).optional(),
+        ownershipState: lessonOwnershipStateSchema.default("permissive"),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -237,6 +255,7 @@ export const lessonLearnedRouter = createTRPCRouter({
           discipline: input.discipline,
           projectPhase: input.projectPhase ?? null,
           workPackageId: input.workPackageId ?? null,
+          ownershipState: input.ownershipState,
           status: "draft",
           authorId: ctx.user.id,
           updatedAt: new Date(),
@@ -297,6 +316,37 @@ export const lessonLearnedRouter = createTRPCRouter({
         })
         .where(eq(lessonsLearned.id, id))
         .returning();
+
+      return updated;
+    }),
+
+  setOwnershipState: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        ownershipState: lessonOwnershipStateSchema,
+        rationale: z.string().min(1).max(4000).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const projectId = await projectIdForLessonLearned(input.id);
+      await requireRole(ctx.user.id, projectId, "editor");
+
+      const [updated] = await db
+        .update(lessonsLearned)
+        .set({
+          ownershipState: input.ownershipState,
+          ownershipChangedById: ctx.user.id,
+          ownershipChangedAt: new Date(),
+          ownershipRationale: input.rationale ?? null,
+          updatedAt: new Date(),
+        })
+        .where(eq(lessonsLearned.id, input.id))
+        .returning();
+
+      if (!updated) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
 
       return updated;
     }),
