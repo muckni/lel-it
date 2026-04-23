@@ -237,6 +237,8 @@ export const lessonLearnedRouter = createTRPCRouter({
         workPackageId: z.string().uuid().optional(),
         interfacePointIds: z.array(z.string().uuid()).optional(),
         ownershipState: lessonOwnershipStateSchema.default("permissive"),
+        location: z.string().max(500).optional(),
+        tags: z.array(z.string().max(100)).max(20).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -256,6 +258,8 @@ export const lessonLearnedRouter = createTRPCRouter({
           projectPhase: input.projectPhase ?? null,
           workPackageId: input.workPackageId ?? null,
           ownershipState: input.ownershipState,
+          location: input.location ?? null,
+          tags: input.tags ?? [],
           status: "draft",
           authorId: ctx.user.id,
           updatedAt: new Date(),
@@ -286,6 +290,8 @@ export const lessonLearnedRouter = createTRPCRouter({
         discipline: lessonDisciplineSchema.optional(),
         projectPhase: projectPhaseSchema.nullable().optional(),
         workPackageId: z.string().uuid().nullable().optional(),
+        location: z.string().max(500).optional(),
+        tags: z.array(z.string().max(100)).max(20).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -312,6 +318,8 @@ export const lessonLearnedRouter = createTRPCRouter({
         .update(lessonsLearned)
         .set({
           ...patch,
+          ...(input.location !== undefined && { location: input.location }),
+          ...(input.tags !== undefined && { tags: input.tags }),
           updatedAt: new Date(),
         })
         .where(eq(lessonsLearned.id, id))
