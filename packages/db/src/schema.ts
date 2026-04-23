@@ -1328,6 +1328,8 @@ export const lessonsLearned = pgTable(
     ownershipChangedById: uuid("ownership_changed_by_id"),
     ownershipChangedAt: timestamp("ownership_changed_at", { withTimezone: true }),
     ownershipRationale: text("ownership_rationale"),
+    location: text("location"),
+    tags: text("tags").array().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
