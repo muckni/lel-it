@@ -11,10 +11,8 @@ import {
   BotIcon,
   CalendarClockIcon,
   CheckCircle2Icon,
-  ChevronRightIcon,
   CircleAlertIcon,
   ClipboardCheckIcon,
-  FilterIcon,
   ListChecksIcon,
   MenuIcon,
   SearchIcon,
@@ -29,8 +27,10 @@ import {
   LLStatusBadge,
   LLTypeBadge,
 } from "@/components/lessons/ll-badge";
+import { LessonDetailPanel, type DetailLesson } from "@/components/lessons/ll-detail-panel";
 import { LessonCommentsThread } from "@/components/lessons/lesson-comments-thread";
 import { useLessonsI18n } from "@/components/lessons/lessons-i18n";
+import { LessonRow, type LessonRowItem } from "@/components/lessons/ll-row";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -66,28 +66,11 @@ const triageDecisionOptions = [
   { value: "external_context", label: "External Context" },
 ] as const;
 
-const workflowSteps = ["Capture", "Review", "Actions", "Reports"];
-
 function actionProgress(status: string) {
   if (status === "done") return 100;
   if (status === "in_progress") return 65;
   if (status === "overdue") return 30;
   return 10;
-}
-
-function parseTags(lesson: {
-  type: string;
-  discipline: string;
-  description: string;
-  recommendation: string | null;
-  workPackage: { code: string } | null;
-}) {
-  const tags = new Set<string>([lesson.type, lesson.discipline]);
-  if (lesson.workPackage?.code) tags.add(lesson.workPackage.code.toLowerCase());
-  const content = `${lesson.description}\n${lesson.recommendation ?? ""}`;
-  const explicit = content.match(/#([a-z0-9_-]+)/gi) ?? [];
-  for (const token of explicit) tags.add(token.slice(1).toLowerCase());
-  return Array.from(tags);
 }
 
 function keywordThemes(
@@ -150,13 +133,10 @@ export default function ProjectLessonsModulePage() {
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
-  const [tagFilter, setTagFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [disciplineFilter, setDisciplineFilter] = useState<string>("all");
   const [ownershipFilter, setOwnershipFilter] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
 
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("pending");
   const [reviewCommentByLesson, setReviewCommentByLesson] = useState<Record<string, string>>({});
@@ -194,27 +174,15 @@ export default function ProjectLessonsModulePage() {
 
   const filteredLessons = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const tag = tagFilter.trim().toLowerCase();
-    const from = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
-    const to = dateTo ? new Date(`${dateTo}T23:59:59`) : null;
 
     return lessons.filter((lesson) => {
       if (query) {
         const haystack = `${lesson.title}\n${lesson.description}\n${lesson.recommendation ?? ""}`.toLowerCase();
         if (!haystack.includes(query)) return false;
       }
-
-      if (tag) {
-        const tags = parseTags(lesson);
-        if (!tags.some((row) => row.includes(tag))) return false;
-      }
-
-      const createdAt = new Date(lesson.createdAt);
-      if (from && createdAt < from) return false;
-      if (to && createdAt > to) return false;
       return true;
     });
-  }, [dateFrom, dateTo, lessons, search, tagFilter]);
+  }, [lessons, search]);
 
   const reviewLessons = useMemo(() => {
     if (reviewFilter === "pending") return lessons.filter((lesson) => lesson.status === "draft");
@@ -332,26 +300,53 @@ export default function ProjectLessonsModulePage() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            {workflowSteps.map((step, index) => (
-              <div key={step} className="flex items-center gap-2">
+      <div
+        className="flex items-center gap-0 rounded-lg border border-[#E5E7EB] bg-white px-4 py-2"
+        style={{ fontFamily: "var(--font-ibm-plex-sans)" }}
+      >
+        {(["capture", "review", "actions", "reports"] as const).map((key, index) => {
+          const labels = ["Capture", "Review", "Actions", "Reports"] as const;
+          const activeIndex = ["capture", "review", "actions", "reports"].indexOf(section);
+          const isActive = section === key;
+          const isPast = activeIndex > index;
+
+          return (
+            <div key={key} className="flex items-center gap-0">
+              {index > 0 ? (
+                <div
+                  className="mx-1 h-px w-4 shrink-0"
+                  style={{ background: isPast ? "#0F172A" : "#E5E7EB" }}
+                />
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => setSection(key)}
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors"
+                style={{
+                  background: isActive ? "#0F172A" : isPast ? "#F3F4F6" : "transparent",
+                  color: isActive ? "#FFFFFF" : isPast ? "#374151" : "#9CA3AF",
+                  border: "none",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  fontFamily: "inherit",
+                }}
+              >
                 <span
-                  className={`rounded-full px-2 py-1 text-xs ${
-                    index === ["capture", "review", "actions", "reports"].indexOf(section)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}
+                  className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
+                  style={{
+                    background: isActive ? "rgba(255,255,255,0.2)" : isPast ? "#0F172A" : "#E5E7EB",
+                    color: isActive || isPast ? "#FFFFFF" : "#9CA3AF",
+                  }}
                 >
-                  {step}
+                  {isPast ? "✓" : index + 1}
                 </span>
-                {index < workflowSteps.length - 1 && <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                {labels[index]}
+              </button>
+            </div>
+          );
+        })}
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)_340px]">
         <Card className="hidden lg:block lg:h-fit">
@@ -410,152 +405,131 @@ export default function ProjectLessonsModulePage() {
 
           {section === "capture" && (
             <>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FilterIcon className="h-4 w-4" /> {t("filters")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <div className="space-y-1.5">
-                    <Label>Search</Label>
-                    <div className="relative">
-                      <SearchIcon className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder={t("searchPlaceholder")}
-                        className="pl-8"
-                        aria-label="Search lessons"
-                      />
-                    </div>
-                  </div>
+              <div
+                className="flex flex-nowrap items-center gap-1.5 overflow-hidden rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5"
+                style={{ fontFamily: "var(--font-ibm-plex-sans)" }}
+              >
+                <div className="relative min-w-[120px] flex-1">
+                  <SearchIcon className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9CA3AF]" />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search lessons…"
+                    className="w-full rounded-md border border-[#E5E7EB] bg-[#FAFAFA] py-1.5 pl-7 pr-2.5 text-[12px] text-[#111827] outline-none transition-colors focus:border-[#2563EB]"
+                    style={{ fontFamily: "inherit" }}
+                  />
+                </div>
 
-                  <div className="space-y-1.5">
-                    <Label>Category</Label>
-                    <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value ?? "all")}> 
-                      <SelectTrigger>
-                        <SelectValue placeholder="All categories" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All categories</SelectItem>
-                        {LESSON_TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label>Project</Label>
-                    <Input value={project?.name ?? "Current project"} disabled aria-label="Project filter" />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label>Tags</Label>
-                    <Input
-                      value={tagFilter}
-                      onChange={(event) => setTagFilter(event.target.value)}
-                      placeholder="Filter by tag keyword"
-                      aria-label="Tag filter"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label>Status</Label>
-                    <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value ?? "all")}> 
-                      <SelectTrigger>
-                        <SelectValue placeholder="All statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All statuses</SelectItem>
-                        {LESSON_STATUS_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label>Discipline</Label>
-                    <Select value={disciplineFilter} onValueChange={(value) => setDisciplineFilter(value ?? "all")}> 
-                      <SelectTrigger>
-                        <SelectValue placeholder="All disciplines" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All disciplines</SelectItem>
-                        {LESSON_DISCIPLINES.map((discipline) => (
-                          <SelectItem key={discipline} value={discipline}>{DISCIPLINE_LABELS[discipline]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label>Ownership</Label>
-                    <Select value={ownershipFilter} onValueChange={(value) => setOwnershipFilter(value ?? "all")}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All ownership states" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All ownership states</SelectItem>
-                        {LESSON_OWNERSHIP_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
+                {[
+                  {
+                    key: "type",
+                    value: typeFilter,
+                    setValue: setTypeFilter,
+                    options: [
+                      { value: "all", label: "Type" },
+                      ...LESSON_TYPE_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
+                    ],
+                  },
+                  {
+                    key: "status",
+                    value: statusFilter,
+                    setValue: setStatusFilter,
+                    options: [
+                      { value: "all", label: "Status" },
+                      ...LESSON_STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
+                    ],
+                  },
+                  {
+                    key: "discipline",
+                    value: disciplineFilter,
+                    setValue: setDisciplineFilter,
+                    options: [
+                      { value: "all", label: "Discipline" },
+                      ...LESSON_DISCIPLINES.map((discipline) => ({
+                        value: discipline,
+                        label: DISCIPLINE_LABELS[discipline],
+                      })),
+                    ],
+                  },
+                  {
+                    key: "ownership",
+                    value: ownershipFilter,
+                    setValue: setOwnershipFilter,
+                    options: [
+                      { value: "all", label: "Ownership" },
+                      ...LESSON_OWNERSHIP_OPTIONS.map((option) => ({
+                        value: option.value,
+                        label: option.label,
+                      })),
+                    ],
+                  },
+                ].map((filter) => {
+                  const active = filter.value !== "all";
+                  return (
+                    <div key={filter.key} className="relative">
+                      <select
+                        value={filter.value}
+                        onChange={(event) => filter.setValue(event.target.value)}
+                        className="appearance-none rounded-md py-1.5 pl-2.5 pr-6 text-[11px] font-medium outline-none transition-colors"
+                        style={{
+                          border: `1px solid ${active ? "#0F172A" : "#E5E7EB"}`,
+                          background: active ? "#0F172A" : "#FFFFFF",
+                          color: active ? "#FFFFFF" : "#374151",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {filter.options.map((option) => (
+                          <option key={option.value} value={option.value}>
                             {option.label}
-                          </SelectItem>
+                          </option>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      </select>
+                      <span
+                        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-[#9CA3AF]"
+                        aria-hidden
+                      >
+                        ▾
+                      </span>
+                    </div>
+                  );
+                })}
 
-                  <div className="space-y-1.5">
-                    <Label>Date from</Label>
-                    <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-                  </div>
+                {(search ||
+                  typeFilter !== "all" ||
+                  statusFilter !== "all" ||
+                  disciplineFilter !== "all" ||
+                  ownershipFilter !== "all") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      setTypeFilter("all");
+                      setStatusFilter("all");
+                      setDisciplineFilter("all");
+                      setOwnershipFilter("all");
+                    }}
+                    className="flex items-center gap-1 px-1.5 py-1 text-[11px] text-[#6B7280] hover:text-[#111827]"
+                    style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    ✕ Clear
+                  </button>
+                )}
+              </div>
 
-                  <div className="space-y-1.5">
-                    <Label>Date to</Label>
-                    <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="space-y-3">
+              <div className="overflow-hidden rounded-lg border border-[#E5E7EB] bg-white">
                 {filteredLessons.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-10 text-center text-sm text-muted-foreground">{t("noResults")}</CardContent>
-                  </Card>
+                  <p className="py-12 text-center text-sm text-muted-foreground">{t("noResults")}</p>
                 ) : (
                   filteredLessons.map((lesson) => (
-                    <Card
+                    <LessonRow
                       key={lesson.id}
-                      className={selectedLessonId === lesson.id ? "border-primary" : ""}
-                    >
-                      <CardContent className="pt-4">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <LLStatusBadge status={lesson.status} />
-                              <LLTypeBadge type={lesson.type} />
-                              <LLOwnershipBadge ownershipState={lesson.ownershipState} />
-                              <span className="text-xs text-muted-foreground">Workflow: {lesson.workflowState}</span>
-                            </div>
-                            <p className="text-sm font-semibold">{lesson.title}</p>
-                            <p className="line-clamp-3 text-xs text-muted-foreground">{lesson.description}</p>
-                            <div className="flex flex-wrap gap-1">
-                              {parseTags(lesson).slice(0, 5).map((tag) => (
-                                <span key={`${lesson.id}-${tag}`} className="rounded bg-muted px-2 py-0.5 text-[11px]">
-                                  #{tag}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                          <Button size="sm" variant="outline" onClick={() => setSelectedLessonId(lesson.id)}>
-                            {t("details")}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                      lesson={lesson as LessonRowItem}
+                      selected={selectedLessonId === lesson.id}
+                      onClick={() =>
+                        setSelectedLessonId(selectedLessonId === lesson.id ? null : lesson.id)
+                      }
+                    />
                   ))
                 )}
               </div>
@@ -1123,6 +1097,21 @@ export default function ProjectLessonsModulePage() {
           </div>
         )}
       </div>
+
+      {selectedLessonId && selectedLesson ? (
+        <LessonDetailPanel
+          lesson={selectedLesson as DetailLesson}
+          projectId={projectId}
+          canEdit={canEdit}
+          canComment={role !== null}
+          isAdmin={role === "admin"}
+          busy={busy}
+          onClose={() => setSelectedLessonId(null)}
+          onValidate={(id) => validateMutation.mutate({ id })}
+          onConsolidate={(id) => validateMutation.mutate({ id })}
+          onCloseLesson={(id) => validateMutation.mutate({ id })}
+        />
+      ) : null}
 
       <CreateLessonDialog
         projectId={projectId}
