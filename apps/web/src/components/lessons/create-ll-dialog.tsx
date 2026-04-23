@@ -173,10 +173,8 @@ export function CreateLessonDialog({
     setSubmitError(null);
 
     const descriptionParts = [
-      values.location?.trim() ? `Location: ${values.location.trim()}` : null,
       `Problem:\n${values.problem.trim()}`,
       values.outcomes?.trim() ? `Outcomes/Impacts:\n${values.outcomes.trim()}` : null,
-      values.tags?.trim() ? `Tags: ${values.tags.trim()}` : null,
     ].filter(Boolean);
 
     const recommendationParts = [
@@ -194,6 +192,13 @@ export function CreateLessonDialog({
       projectPhase: values.projectPhase ?? undefined,
       workPackageId: values.workPackageId ?? undefined,
       interfacePointIds: defaultInterfacePointId ? [defaultInterfacePointId] : undefined,
+      location: values.location?.trim() || undefined,
+      tags: values.tags
+        ? values.tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+        : undefined,
     });
   }
 
