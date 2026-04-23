@@ -246,6 +246,8 @@ export default function ProjectLessonsModulePage() {
   };
 
   const validateMutation = useMutation(trpc.lessonLearned.validate.mutationOptions({ onSuccess: refreshAll }));
+  const consolidateMutation = useMutation(trpc.lessonLearned.consolidate.mutationOptions({ onSuccess: refreshAll }));
+  const closeLessonMutation = useMutation(trpc.lessonLearned.close.mutationOptions({ onSuccess: refreshAll }));
   const rejectMutation = useMutation(
     trpc.comment.create.mutationOptions({
       onSuccess: refreshAll,
@@ -266,6 +268,8 @@ export default function ProjectLessonsModulePage() {
 
   const busy =
     validateMutation.isPending ||
+    consolidateMutation.isPending ||
+    closeLessonMutation.isPending ||
     rejectMutation.isPending ||
     triageMutation.isPending ||
     createClusterMutation.isPending ||
@@ -1108,8 +1112,8 @@ export default function ProjectLessonsModulePage() {
           busy={busy}
           onClose={() => setSelectedLessonId(null)}
           onValidate={(id) => validateMutation.mutate({ id })}
-          onConsolidate={(id) => validateMutation.mutate({ id })}
-          onCloseLesson={(id) => validateMutation.mutate({ id })}
+          onConsolidate={(id) => consolidateMutation.mutate({ id })}
+          onCloseLesson={(id) => closeLessonMutation.mutate({ id })}
         />
       ) : null}
 
