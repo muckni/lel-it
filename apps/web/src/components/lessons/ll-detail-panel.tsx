@@ -213,7 +213,7 @@ export function LessonDetailPanel({
                     {linkedPoints.map((point) => (
                       <Link
                         key={point.id}
-                        href={`/projects/${projectId}/interface-points/${point.id}`}
+                        href={`/projects/${projectId}/modules/interfaces?pointId=${point.id}`}
                         className="text-[12px] text-[#1D4ED8] underline-offset-2 hover:underline"
                       >
                         {point.code} · {point.title}
