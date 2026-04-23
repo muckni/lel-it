@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
+import { LogoutButton } from "@/components/logout-button";
 import { WindIcon, FolderIcon, PlusIcon } from "lucide-react";
 import Link from "next/link";
 
@@ -67,11 +68,15 @@ function DashboardContent() {
             </Breadcrumb>
           </div>
           {projects.length > 0 && (
-            <Button size="sm" onClick={() => setOpenCreateDialog(true)}>
-              <PlusIcon className="h-4 w-4 mr-1" />
-              New Project
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => setOpenCreateDialog(true)}>
+                <PlusIcon className="h-4 w-4 mr-1" />
+                New Project
+              </Button>
+              <LogoutButton />
+            </div>
           )}
+          {projects.length === 0 && <LogoutButton />}
         </div>
       </header>
 

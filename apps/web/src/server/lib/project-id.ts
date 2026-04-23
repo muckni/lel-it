@@ -93,11 +93,11 @@ export async function projectIdForAssetPlacement(id: string): Promise<string> {
 
 export async function projectIdForComment(
   parentId: string,
-  parentType: "interface_point" | "interface_query"
+  parentType: "interface_point" | "interface_query" | "lesson_learned"
 ): Promise<string> {
-  return parentType === "interface_point"
-    ? projectIdForPoint(parentId)
-    : projectIdForQuery(parentId);
+  if (parentType === "interface_point") return projectIdForPoint(parentId);
+  if (parentType === "interface_query") return projectIdForQuery(parentId);
+  return projectIdForLessonLearned(parentId);
 }
 
 export async function projectIdForLessonLearned(id: string): Promise<string> {

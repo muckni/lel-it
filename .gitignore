@@ -25,3 +25,15 @@ supabase/.temp/
 # Debug
 npm-debug.log*
 pnpm-debug.log*
+
+# Codex local configuration
+.codex/
+
+# Claude Flow runtime data
+.claude-flow/data/
+.claude-flow/logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local

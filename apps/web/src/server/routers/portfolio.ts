@@ -6,10 +6,47 @@ import { TRPCError } from "@trpc/server";
 
 export const portfolioRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
-    return db.query.portfolios.findMany({
+    const ownedPortfolios = await db.query.portfolios.findMany({
       where: eq(portfolios.ownerId, ctx.user.id),
       with: { projects: true },
     });
+
+    const memberRows = await db.query.projectMembers.findMany({
+      where: eq(projectMembers.userId, ctx.user.id),
+      with: {
+        project: {
+          with: {
+            portfolio: true,
+          },
+        },
+      },
+    });
+
+    const byPortfolio = new Map<string, (typeof ownedPortfolios)[number]>();
+    for (const portfolio of ownedPortfolios) {
+      byPortfolio.set(portfolio.id, portfolio);
+    }
+
+    for (const member of memberRows) {
+      const project = member.project;
+      const portfolio = project?.portfolio;
+      if (!project || !portfolio) continue;
+
+      const existing = byPortfolio.get(portfolio.id);
+      if (existing) {
+        if (!existing.projects.some((row) => row.id === project.id)) {
+          existing.projects.push(project);
+        }
+        continue;
+      }
+
+      byPortfolio.set(portfolio.id, {
+        ...portfolio,
+        projects: [project],
+      });
+    }
+
+    return Array.from(byPortfolio.values());
   }),
 
   create: protectedProcedure
