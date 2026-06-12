@@ -618,6 +618,30 @@ export const lessonV2Router = createTRPCRouter({
       }));
     }),
 
+  listEligibleProjectsForCorporateAdd: protectedProcedure.query(async ({ ctx }) => {
+    await requireV2CorporateCapabilityForUser(ctx.user.id, "browse_corporate_library");
+    const memberships = await db.query.projectMembers.findMany({
+      where: and(
+        eq(projectMembers.userId, ctx.user.id),
+        inArray(projectMembers.role, ["admin", "editor"])
+      ),
+      columns: { id: true, projectId: true, role: true },
+      with: {
+        project: {
+          columns: { id: true, name: true, status: true },
+        },
+      },
+      orderBy: [desc(projectMembers.createdAt)],
+    });
+    return memberships
+      .filter((membership) => membership.project.status === "active")
+      .map((membership) => ({
+        id: membership.project.id,
+        name: membership.project.name,
+        role: membership.role,
+      }));
+  }),
+
   addCorporateActionToProject: protectedProcedure
     .input(
       z.object({

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3Icon,
   BookOpenCheckIcon,
@@ -12,6 +13,12 @@ import {
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
@@ -24,8 +31,31 @@ const corporateNav = [
 
 export default function CorporateLibraryPage() {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
   const { data: entries = [], isLoading } = useQuery(
     trpc.lessonV2.listCorporateLibrary.queryOptions()
+  );
+  const { data: eligibleProjects = [] } = useQuery(
+    trpc.lessonV2.listEligibleProjectsForCorporateAdd.queryOptions()
+  );
+  const addToProject = useMutation(
+    trpc.lessonV2.addCorporateActionToProject.mutationOptions({
+      onSuccess: async (_, variables) => {
+        await queryClient.invalidateQueries(
+          trpc.lessonV2.listCorporateLibrary.queryOptions()
+        );
+        await queryClient.invalidateQueries(
+          trpc.lessonV2.listProjectActions.queryOptions({ projectId: variables.projectId })
+        );
+        setSelectedActionId(null);
+        setAddError(null);
+      },
+      onError: (error) => {
+        setAddError(error.message);
+      },
+    })
   );
 
   return (
@@ -112,7 +142,13 @@ export default function CorporateLibraryPage() {
                       </span>
                     ) : null}
                   </div>
-                  <Button className="w-full">
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      setSelectedActionId(entry.id);
+                      setAddError(null);
+                    }}
+                  >
                     <PlusIcon className="size-4" />
                     Add to project
                   </Button>
@@ -137,6 +173,38 @@ export default function CorporateLibraryPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={selectedActionId !== null} onOpenChange={(open) => !open && setSelectedActionId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add to project</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {eligibleProjects.map((project) => (
+              <Button
+                key={project.id}
+                variant="outline"
+                className="w-full justify-between"
+                disabled={addToProject.isPending || !selectedActionId}
+                onClick={() => {
+                  if (!selectedActionId) return;
+                  addToProject.mutate({
+                    projectId: project.id,
+                    corporateActionId: selectedActionId,
+                  });
+                }}
+              >
+                <span>{project.name}</span>
+                <span className="text-xs text-muted-foreground">{project.role}</span>
+              </Button>
+            ))}
+            {eligibleProjects.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No eligible projects.</p>
+            ) : null}
+            {addError ? <p className="text-sm text-destructive">{addError}</p> : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
