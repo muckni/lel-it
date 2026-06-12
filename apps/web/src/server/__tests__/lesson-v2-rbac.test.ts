@@ -8,10 +8,26 @@ vi.mock("../lib/lesson-rbac", () => ({
   listLessonRolesForUser: vi.fn(),
 }));
 
+vi.mock("drizzle-orm", () => ({
+  eq: vi.fn(() => ({ kind: "eq" })),
+}));
+
+vi.mock("@owit/db", () => ({
+  db: {
+    query: {
+      userCorporateRoles: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    },
+  },
+  userCorporateRoles: { userId: "user_id" },
+}));
+
 const {
   canCorporateRolePerform,
   canProjectRolePerform,
   deriveV2ProjectRole,
+  getV2CorporateRoleForUser,
 } = await import("../lib/lesson-v2-rbac");
 
 describe("lesson v2 RBAC helpers", () => {
@@ -52,5 +68,9 @@ describe("lesson v2 RBAC helpers", () => {
     expect(canCorporateRolePerform("senior_management", "view_corporate_dashboard")).toBe(true);
     expect(canCorporateRolePerform("senior_management", "publish_corporate_action")).toBe(false);
     expect(canCorporateRolePerform("corporate_viewer", "browse_corporate_library")).toBe(true);
+  });
+
+  it("defaults authenticated users to corporate library browse access", async () => {
+    await expect(getV2CorporateRoleForUser("user-1")).resolves.toBe("corporate_viewer");
   });
 });

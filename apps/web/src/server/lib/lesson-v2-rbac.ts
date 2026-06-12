@@ -1,4 +1,6 @@
 import { TRPCError } from "@trpc/server";
+import { db, userCorporateRoles } from "@owit/db";
+import { eq } from "drizzle-orm";
 import { getProjectRole } from "@/server/lib/rbac";
 import { listLessonRolesForUser, type LessonRoleType } from "@/server/lib/lesson-rbac";
 
@@ -131,6 +133,14 @@ export async function getV2ProjectRoleForUser(projectId: string, userId: string)
   return deriveV2ProjectRole(baseRole, lessonRoles);
 }
 
+export async function getV2CorporateRoleForUser(userId: string): Promise<V2CorporateRole> {
+  const row = await db.query.userCorporateRoles.findFirst({
+    where: eq(userCorporateRoles.userId, userId),
+    columns: { role: true },
+  });
+  return (row?.role as V2CorporateRole | undefined) ?? "corporate_viewer";
+}
+
 export async function requireV2ProjectCapability(
   projectId: string,
   userId: string,
@@ -157,4 +167,13 @@ export function requireV2CorporateCapability(
       message: `Requires corporate capability: ${capability}`,
     });
   }
+}
+
+export async function requireV2CorporateCapabilityForUser(
+  userId: string,
+  capability: V2CorporateCapability
+) {
+  const role = await getV2CorporateRoleForUser(userId);
+  requireV2CorporateCapability(role, capability);
+  return role;
 }

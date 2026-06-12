@@ -17,7 +17,8 @@ export type RecommendedActionV2Status =
   | "corporate_review"
   | "corporate_approved"
   | "corporate_rejected"
-  | "retired";
+  | "retired"
+  | "archived";
 
 export type CorporateActionV2Status = "active" | "under_review" | "retired";
 
@@ -70,6 +71,7 @@ export const LESSON_V2_TRANSITIONS = {
     corporate_approved: ["retired"],
     corporate_rejected: ["proposed_for_corporate", "retired"],
     retired: [],
+    archived: [],
   },
   corporate_recommended_action: {
     active: ["under_review", "retired"],

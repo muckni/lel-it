@@ -28,6 +28,7 @@ import { lessonOpsRouter } from "./lesson-ops";
 import { lessonPolicyRouter } from "./lesson-policy";
 import { lessonPortfolioRouter } from "./lesson-portfolio";
 import { lessonReportRouter } from "./lesson-report";
+import { lessonV2Router } from "./lesson-v2";
 
 export const appRouter = createTRPCRouter({
   portfolio: portfolioRouter,
@@ -59,6 +60,7 @@ export const appRouter = createTRPCRouter({
   lessonPolicy: lessonPolicyRouter,
   lessonPortfolio: lessonPortfolioRouter,
   lessonReport: lessonReportRouter,
+  lessonV2: lessonV2Router,
 });
 
 export type AppRouter = typeof appRouter;

@@ -72,6 +72,7 @@ describe("lesson v2 transfer helpers", () => {
       projectId: null,
       previousValue: { status: "assigned" },
       newValue: { status: "in_progress" },
+      note: null,
       createdAt: new Date("2026-06-12T00:00:00.000Z"),
     });
   });

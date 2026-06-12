@@ -9,7 +9,7 @@ CREATE TYPE "corporate_action_status" AS ENUM ('active', 'under_review', 'retire
 CREATE TYPE "project_action_status" AS ENUM ('added_to_project', 'assigned', 'in_progress', 'blocked', 'implemented', 'evidence_submitted', 'verified', 'closed', 'cancelled');--> statement-breakpoint
 CREATE TYPE "evidence_kind" AS ENUM ('file', 'link', 'note');--> statement-breakpoint
 CREATE TYPE "lesson_comment_kind" AS ENUM ('comment', 'review_note');--> statement-breakpoint
-CREATE TYPE "lesson_entity_type" AS ENUM ('lesson', 'lesson_cluster', 'recommended_action', 'corporate_recommended_action', 'project_action', 'project_membership', 'project');--> statement-breakpoint
+CREATE TYPE "lesson_entity_type" AS ENUM ('lesson', 'lesson_cluster', 'recommended_action', 'corporate_recommended_action', 'project_action', 'project_membership', 'project', 'corporate_role', 'category', 'workstream', 'gate', 'evidence', 'comment', 'export');--> statement-breakpoint
 
 CREATE TABLE "user_corporate_roles" (
   "user_id" uuid PRIMARY KEY NOT NULL,

@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import type { LessonEntityType } from "@owit/shared";
 
 export type ConfidentialityLevel = "internal" | "confidential" | "strictly_confidential";
 
@@ -89,13 +90,14 @@ export function createProjectActionCopyFromCorporate({
 }
 
 export type LessonV2AuditEventInput = {
-  entityType: string;
+  entityType: LessonEntityType;
   entityId: string;
   eventType: string;
   actorId: string;
   projectId?: string | null;
   previousValue?: unknown;
   newValue?: unknown;
+  note?: string | null;
   createdAt?: Date;
 };
 
@@ -108,6 +110,7 @@ export function buildLessonV2AuditEvent(input: LessonV2AuditEventInput) {
     projectId: input.projectId ?? null,
     previousValue: input.previousValue ?? null,
     newValue: input.newValue ?? null,
+    note: input.note ?? null,
     createdAt: input.createdAt ?? new Date(),
   };
 }

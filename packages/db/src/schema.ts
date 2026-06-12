@@ -402,6 +402,13 @@ export const lessonEntityTypeEnum = pgEnum("lesson_entity_type", [
   "project_action",
   "project_membership",
   "project",
+  "corporate_role",
+  "category",
+  "workstream",
+  "gate",
+  "evidence",
+  "comment",
+  "export",
 ]);
 
 // ─── Tables ──────────────────────────────────────────────────────────────────
