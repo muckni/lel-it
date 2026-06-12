@@ -52,6 +52,7 @@ export default function ProjectLessonsV2Page() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const basePath = `/projects/${projectId}/lessons-v2`;
+  const [renderedAt] = useState(() => Date.now());
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureForm, setCaptureForm] = useState({
     title: "",
@@ -83,6 +84,20 @@ export default function ProjectLessonsV2Page() {
           type: "problem",
           categoryId: categories[0]?.id ?? "",
         });
+      },
+    })
+  );
+  const submitLesson = useMutation(
+    trpc.lessonV2.submitLesson.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(trpc.lessonV2.listLessons.queryOptions({ projectId }));
+      },
+    })
+  );
+  const decideLesson = useMutation(
+    trpc.lessonV2.decideLesson.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(trpc.lessonV2.listLessons.queryOptions({ projectId }));
       },
     })
   );
@@ -127,7 +142,7 @@ export default function ProjectLessonsV2Page() {
       label: "Overdue actions",
       value: projectActions.filter((action) => {
         if (!action.deadline || ["closed", "cancelled", "verified"].includes(action.status)) return false;
-        return new Date(action.deadline).getTime() < Date.now();
+        return new Date(action.deadline).getTime() < renderedAt;
       }).length,
       note: "Past deadline",
     },
@@ -259,6 +274,83 @@ export default function ProjectLessonsV2Page() {
           </CardContent>
         </Card>
       </div>
+
+      <Card id="lessons">
+        <CardHeader>
+          <CardTitle className="text-base">Lessons</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {lessons.slice(0, 10).map((lesson) => (
+            <div
+              key={lesson.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded border p-3"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate text-sm font-medium">{lesson.title}</p>
+                  <span className="rounded bg-muted px-2 py-1 text-xs">
+                    {lesson.status.replace(/_/g, " ")}
+                  </span>
+                  <span className="rounded border px-2 py-1 text-xs">
+                    {lesson.category.name}
+                  </span>
+                </div>
+                <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                  {lesson.description}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {lesson.status === "draft" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={submitLesson.isPending}
+                    onClick={() =>
+                      submitLesson.mutate({ projectId, lessonId: lesson.id })
+                    }
+                  >
+                    Submit
+                  </Button>
+                ) : null}
+                {lesson.status === "submitted" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={decideLesson.isPending}
+                    onClick={() =>
+                      decideLesson.mutate({
+                        projectId,
+                        lessonId: lesson.id,
+                        decision: "start_review",
+                      })
+                    }
+                  >
+                    Start review
+                  </Button>
+                ) : null}
+                {lesson.status === "under_review" ? (
+                  <Button
+                    size="sm"
+                    disabled={decideLesson.isPending}
+                    onClick={() =>
+                      decideLesson.mutate({
+                        projectId,
+                        lessonId: lesson.id,
+                        decision: "validate",
+                      })
+                    }
+                  >
+                    Validate
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ))}
+          {lessons.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No lessons.</p>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Dialog open={captureOpen} onOpenChange={setCaptureOpen}>
         <DialogContent className="sm:max-w-lg">
