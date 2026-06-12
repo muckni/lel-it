@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3Icon,
   ClipboardCheckIcon,
@@ -16,6 +16,23 @@ import {
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 
@@ -33,11 +50,51 @@ export default function ProjectLessonsV2Page() {
   const params = useParams<{ projectId: string }>();
   const projectId = params.projectId;
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const basePath = `/projects/${projectId}/lessons-v2`;
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [captureForm, setCaptureForm] = useState({
+    title: "",
+    description: "",
+    type: "problem" as const,
+    categoryId: "",
+  });
   const { data: lessons = [] } = useQuery(
     trpc.lessonV2.listLessons.queryOptions({ projectId })
   );
   const { data: categories = [] } = useQuery(trpc.lessonV2.listCategories.queryOptions());
+  const createLesson = useMutation(
+    trpc.lessonV2.createLesson.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(trpc.lessonV2.listLessons.queryOptions({ projectId }));
+        setCaptureOpen(false);
+        setCaptureForm({
+          title: "",
+          description: "",
+          type: "problem",
+          categoryId: categories[0]?.id ?? "",
+        });
+      },
+    })
+  );
+
+  function createCapturedLesson(submit: boolean) {
+    const categoryId = captureForm.categoryId || categories[0]?.id;
+    if (!categoryId) return;
+    createLesson.mutate({
+      projectId,
+      title: captureForm.title,
+      description: captureForm.description,
+      type: captureForm.type,
+      categoryId,
+      submit,
+    });
+  }
+
+  function submitCapture(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    createCapturedLesson(true);
+  }
 
   const lessonCounts = useMemo(() => {
     return lessons.reduce(
@@ -79,7 +136,7 @@ export default function ProjectLessonsV2Page() {
           >
             Corporate Library
           </Link>
-          <Button>
+          <Button onClick={() => setCaptureOpen(true)}>
             <PlusIcon className="size-4" />
             Capture lesson
           </Button>
@@ -172,6 +229,102 @@ export default function ProjectLessonsV2Page() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={captureOpen} onOpenChange={setCaptureOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={submitCapture} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Capture lesson</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              <Label htmlFor="lesson-v2-title">Title</Label>
+              <Input
+                id="lesson-v2-title"
+                value={captureForm.title}
+                onChange={(event) =>
+                  setCaptureForm((current) => ({ ...current, title: event.target.value }))
+                }
+                maxLength={200}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lesson-v2-description">Description</Label>
+              <Textarea
+                id="lesson-v2-description"
+                value={captureForm.description}
+                onChange={(event) =>
+                  setCaptureForm((current) => ({ ...current, description: event.target.value }))
+                }
+                required
+              />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select
+                  value={captureForm.type}
+                  onValueChange={(value) =>
+                    setCaptureForm((current) => ({
+                      ...current,
+                      type: value as typeof captureForm.type,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["problem", "success", "risk", "improvement", "process_deviation"].map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type.replace(/_/g, " ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={captureForm.categoryId || categories[0]?.id || ""}
+                  onValueChange={(value) =>
+                    setCaptureForm((current) => ({ ...current, categoryId: value ?? "" }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={createLesson.isPending || categories.length === 0}
+                onClick={() => createCapturedLesson(false)}
+              >
+                Save draft
+              </Button>
+              <Button disabled={createLesson.isPending || categories.length === 0}>
+                Submit
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
