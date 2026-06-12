@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3Icon,
   BookOpenCheckIcon,
@@ -11,6 +14,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useTRPC } from "@/trpc/client";
 
 const corporateNav = [
   { label: "Library", href: "/corporate/library", active: true, icon: LibraryIcon },
@@ -18,31 +22,12 @@ const corporateNav = [
   { label: "Dashboard", href: "/corporate/dashboard", active: false, icon: BarChart3Icon },
 ] as const;
 
-const sampleEntries = [
-  {
-    title: "Require supplier input freeze before design gate",
-    category: "Engineering",
-    phase: "FEED",
-    reuseCount: 6,
-    status: "Active",
-  },
-  {
-    title: "Confirm marine logistics assumptions before package award",
-    category: "Installation",
-    phase: "Procurement",
-    reuseCount: 3,
-    status: "Active",
-  },
-  {
-    title: "Run cross-package constructability review after layout change",
-    category: "Construction",
-    phase: "Detailed design",
-    reuseCount: 4,
-    status: "Active",
-  },
-] as const;
-
 export default function CorporateLibraryPage() {
+  const trpc = useTRPC();
+  const { data: entries = [], isLoading } = useQuery(
+    trpc.lessonV2.listCorporateLibrary.queryOptions()
+  );
+
   return (
     <div className="flex flex-1 flex-col gap-5 p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -105,23 +90,27 @@ export default function CorporateLibraryPage() {
           </div>
 
           <div className="grid gap-3 xl:grid-cols-3">
-            {sampleEntries.map((entry) => (
+            {entries.map((entry) => (
               <Card key={entry.title}>
                 <CardHeader className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="rounded bg-teal-50 px-2 py-1 text-xs font-medium text-teal-700">
-                      {entry.status}
+                      {entry.status.replace(/_/g, " ")}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      Reused in {entry.reuseCount} projects
+                      v{entry.version}
                     </span>
                   </div>
                   <CardTitle className="text-base leading-snug">{entry.title}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="rounded border px-2 py-1">{entry.category}</span>
-                    <span className="rounded border px-2 py-1">{entry.phase}</span>
+                    <span className="rounded border px-2 py-1">{entry.category.name}</span>
+                    {entry.reusabilityLevel ? (
+                      <span className="rounded border px-2 py-1">
+                        {entry.reusabilityLevel.replace(/_/g, " ")}
+                      </span>
+                    ) : null}
                   </div>
                   <Button className="w-full">
                     <PlusIcon className="size-4" />
@@ -130,6 +119,13 @@ export default function CorporateLibraryPage() {
                 </CardContent>
               </Card>
             ))}
+            {!isLoading && entries.length === 0 ? (
+              <Card className="xl:col-span-3">
+                <CardContent className="py-6 text-sm text-muted-foreground">
+                  No corporate recommended actions.
+                </CardContent>
+              </Card>
+            ) : null}
           </div>
           <div className="flex justify-end">
             <Link
