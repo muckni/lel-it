@@ -326,6 +326,28 @@ export const lessonV2Router = createTRPCRouter({
       return cluster;
     }),
 
+  listClusters: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        status: lessonClusterStatusSchema.optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      await requireV2ProjectCapability(input.projectId, ctx.user.id, "access_project");
+      return db.query.lessonClustersV2.findMany({
+        where: and(
+          eq(lessonClustersV2.projectId, input.projectId),
+          input.status ? eq(lessonClustersV2.status, input.status) : undefined
+        ),
+        with: {
+          clusterLinks: true,
+          workstream: true,
+        },
+        orderBy: [desc(lessonClustersV2.createdAt)],
+      });
+    }),
+
   createRecommendedAction: protectedProcedure
     .input(
       z.object({
@@ -415,6 +437,67 @@ export const lessonV2Router = createTRPCRouter({
         newValue: { status: "project_approved" },
       });
       return updated;
+    }),
+
+  listRecommendedActions: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        status: recommendedActionStatusSchema.optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      await requireV2ProjectCapability(input.projectId, ctx.user.id, "access_project");
+      return db.query.recommendedActions.findMany({
+        where: and(
+          eq(recommendedActions.projectId, input.projectId),
+          input.status ? eq(recommendedActions.status, input.status) : undefined
+        ),
+        with: {
+          category: true,
+          sourceLesson: true,
+          sourceCluster: true,
+        },
+        orderBy: [desc(recommendedActions.createdAt)],
+      });
+    }),
+
+  spawnProjectActionFromRecommendation: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid(), recommendedActionId: z.string().uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      await requireV2ProjectCapability(input.projectId, ctx.user.id, "approve_recommended_action");
+      const action = await getRecommendedActionInProject(input.projectId, input.recommendedActionId);
+      if (action.status !== "project_approved" && action.status !== "corporate_approved") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Recommended action must be approved before project implementation",
+        });
+      }
+      const [projectAction] = await db
+        .insert(projectActions)
+        .values({
+          projectId: input.projectId,
+          title: action.title,
+          actionDescription: action.actionDescription,
+          implementationGuidance: action.implementationGuidance,
+          categoryId: action.categoryId,
+          sourceRecommendedActionId: action.id,
+          tags: action.tags,
+          createdById: ctx.user.id,
+        })
+        .returning();
+      await audit({
+        entityType: "project_action",
+        entityId: projectAction.id,
+        eventType: "spawned_from_recommended_action",
+        actorId: ctx.user.id,
+        projectId: input.projectId,
+        newValue: {
+          projectActionId: projectAction.id,
+          sourceRecommendedActionId: action.id,
+        },
+      });
+      return projectAction;
     }),
 
   proposeCorporateTransfer: protectedProcedure
@@ -600,6 +683,32 @@ export const lessonV2Router = createTRPCRouter({
         },
       });
       return projectAction;
+    }),
+
+  listProjectActions: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        status: projectActionStatusSchema.optional(),
+        ownerId: z.string().uuid().optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      await requireV2ProjectCapability(input.projectId, ctx.user.id, "access_project");
+      return db.query.projectActions.findMany({
+        where: and(
+          eq(projectActions.projectId, input.projectId),
+          input.status ? eq(projectActions.status, input.status) : undefined,
+          input.ownerId ? eq(projectActions.currentOwnerId, input.ownerId) : undefined
+        ),
+        with: {
+          category: true,
+          sourceCorporateAction: true,
+          sourceRecommendedAction: true,
+          assignments: true,
+        },
+        orderBy: [desc(projectActions.createdAt)],
+      });
     }),
 
   assignProjectAction: protectedProcedure

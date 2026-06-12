@@ -63,6 +63,15 @@ export default function ProjectLessonsV2Page() {
     trpc.lessonV2.listLessons.queryOptions({ projectId })
   );
   const { data: categories = [] } = useQuery(trpc.lessonV2.listCategories.queryOptions());
+  const { data: clusters = [] } = useQuery(
+    trpc.lessonV2.listClusters.queryOptions({ projectId })
+  );
+  const { data: recommendedActions = [] } = useQuery(
+    trpc.lessonV2.listRecommendedActions.queryOptions({ projectId })
+  );
+  const { data: projectActions = [] } = useQuery(
+    trpc.lessonV2.listProjectActions.queryOptions({ projectId })
+  );
   const createLesson = useMutation(
     trpc.lessonV2.createLesson.mutationOptions({
       onSuccess: async () => {
@@ -109,15 +118,36 @@ export default function ProjectLessonsV2Page() {
   const statusCards = [
     { label: "Submitted lessons", value: lessonCounts.submitted ?? 0, note: "Waiting for review" },
     { label: "Validated lessons", value: lessonCounts.validated ?? 0, note: "Ready for clustering" },
-    { label: "Open actions", value: 0, note: "Assigned or in progress" },
-    { label: "Overdue actions", value: 0, note: "Past deadline" },
+    {
+      label: "Open actions",
+      value: projectActions.filter((action) => !["closed", "cancelled"].includes(action.status)).length,
+      note: "Assigned or in progress",
+    },
+    {
+      label: "Overdue actions",
+      value: projectActions.filter((action) => {
+        if (!action.deadline || ["closed", "cancelled", "verified"].includes(action.status)) return false;
+        return new Date(action.deadline).getTime() < Date.now();
+      }).length,
+      note: "Past deadline",
+    },
   ] as const;
 
   const workflowQueues = [
     { label: "Review queue", value: (lessonCounts.submitted ?? 0) + (lessonCounts.under_review ?? 0), href: "#review" },
-    { label: "Draft clusters", value: 0, href: "#clusters" },
-    { label: "Corporate proposals", value: 0, href: "#recommended-actions" },
-    { label: "Needs assignment", value: 0, href: "#actions" },
+    { label: "Draft clusters", value: clusters.filter((cluster) => cluster.status === "draft").length, href: "#clusters" },
+    {
+      label: "Corporate proposals",
+      value: recommendedActions.filter((action) =>
+        ["proposed_for_corporate", "corporate_review"].includes(action.status)
+      ).length,
+      href: "#recommended-actions",
+    },
+    {
+      label: "Needs assignment",
+      value: projectActions.filter((action) => action.status === "added_to_project").length,
+      href: "#actions",
+    },
   ] as const;
 
   return (
