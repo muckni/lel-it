@@ -408,7 +408,7 @@ export default function SettingsPage() {
                 <div>
                   <CardTitle>Work Packages</CardTitle>
                   <CardDescription>
-                    Define the packages that have interfaces in this project.
+                    Define the delivery packages used to classify lessons in this project.
                   </CardDescription>
                 </div>
                 {canEdit && (

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { XIcon } from "lucide-react";
 import type { LessonOwnershipState, LessonStatus, LessonType } from "@owit/shared";
 import {
@@ -207,17 +206,16 @@ export function LessonDetailPanel({
                 )}
               </Section>
 
-              <Section label="Linked Interface Points">
+              <Section label="Source References">
                 {linkedPoints.length > 0 ? (
                   <div className="flex flex-col gap-1.5">
                     {linkedPoints.map((point) => (
-                      <Link
+                      <div
                         key={point.id}
-                        href={`/projects/${projectId}/modules/interfaces?pointId=${point.id}`}
-                        className="text-[12px] text-[#1D4ED8] underline-offset-2 hover:underline"
+                        className="rounded border border-[#E5E7EB] bg-[#F9FAFB] px-2 py-1 text-[12px] text-[#374151]"
                       >
                         {point.code} · {point.title}
-                      </Link>
+                      </div>
                     ))}
                   </div>
                 ) : (

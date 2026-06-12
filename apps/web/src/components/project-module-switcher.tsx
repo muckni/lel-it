@@ -22,7 +22,7 @@ export function ProjectModuleSwitcher() {
   const searchParams = useSearchParams();
   const projectId = params.projectId as string;
 
-  const activeModule = inferProjectModuleFromPath(pathname) ?? "interfaces";
+  const activeModule = inferProjectModuleFromPath(pathname) ?? "lessons";
 
   const moduleTargetHref = useMemo(
     () =>

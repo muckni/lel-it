@@ -23,6 +23,7 @@ import {
   FolderIcon,
   PlusIcon,
   LayoutDashboardIcon,
+  LibraryIcon,
 } from "lucide-react";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 
@@ -65,6 +66,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               >
                 <LayoutDashboardIcon className="size-4" />
                 <span>Dashboard</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<a href="/corporate/library" />}
+                isActive={pathname.startsWith("/corporate")}
+              >
+                <LibraryIcon className="size-4" />
+                <span>Corporate Library</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

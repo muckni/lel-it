@@ -16,9 +16,9 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OWIT - Offshore Wind Interface Tool",
+  title: "OWIT - Offshore Wind Lessons Tool",
   description:
-    "Interface management for offshore wind projects — from maturation to operations",
+    "Lessons learned governance for offshore wind projects from maturation to operations",
 };
 
 export default function RootLayout({

@@ -47,7 +47,7 @@ export default function ProjectLayout({
   );
 
   const activeModule =
-    inferProjectModuleFromPath(pathname) ?? ("interfaces" as ProjectModuleKey);
+    inferProjectModuleFromPath(pathname) ?? ("lessons" as ProjectModuleKey);
   const activeContract = PROJECT_MODULES[activeModule];
 
   useEffect(() => {

@@ -10,6 +10,7 @@ import {
   interfaceAgreements,
   interfacePoints,
   interfaceQueries,
+  lessonsLearned,
 } from "@owit/db";
 import { eq, and, inArray, sql, count } from "drizzle-orm";
 import { requireRole, getProjectRole, assertMember } from "@/server/lib/rbac";
@@ -51,6 +52,19 @@ export const projectRouter = createTRPCRouter({
         .select({ count: count() })
         .from(projectMembers)
         .where(eq(projectMembers.projectId, input.id));
+      const [totalLessonsRow] = await db
+        .select({ count: count() })
+        .from(lessonsLearned)
+        .where(eq(lessonsLearned.projectId, input.id));
+      const [validatedLessonsRow] = await db
+        .select({ count: count() })
+        .from(lessonsLearned)
+        .where(
+          and(
+            eq(lessonsLearned.projectId, input.id),
+            inArray(lessonsLearned.status, ["validated", "consolidated", "closed"])
+          )
+        );
 
       // Summary stats via report-style queries
       const registers = await db
@@ -126,7 +140,14 @@ export const projectRouter = createTRPCRouter({
       return {
         ...project,
         memberCount: memberCount.count,
-        stats: { totalPoints, criticalPoints, resolvedPoints, openIqs },
+        stats: {
+          totalPoints,
+          criticalPoints,
+          resolvedPoints,
+          openIqs,
+          totalLessons: totalLessonsRow.count,
+          validatedLessons: validatedLessonsRow.count,
+        },
       };
     }),
 

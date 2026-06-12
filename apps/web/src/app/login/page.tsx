@@ -58,7 +58,7 @@ export default function LoginPage() {
           <WindIcon className="mx-auto h-10 w-10 text-primary mb-2" />
           <CardTitle className="text-2xl">OWIT</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Offshore Wind Interface Tool
+            Offshore Wind Lessons Tool
           </p>
         </CardHeader>
         <CardContent>

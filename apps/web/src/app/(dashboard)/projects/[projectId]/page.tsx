@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpenIcon, LayersIcon, ListIcon, MessageSquareIcon } from "lucide-react";
+import { BookOpenCheckIcon, BookOpenIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PROJECT_MODULES, type ProjectModuleKey } from "@/lib/project-modules";
@@ -29,7 +29,9 @@ export default function ProjectModuleSelectorPage() {
     const remembered = window.localStorage.getItem(key) as ProjectModuleKey | null;
     if (remembered && remembered in PROJECT_MODULES) {
       router.replace(`/projects/${projectId}/modules/${remembered}`);
+      return;
     }
+    router.replace(`/projects/${projectId}/modules/lessons`);
   }, [forceSelector, project, projectId, router]);
 
   if (isLoading) {
@@ -49,24 +51,18 @@ export default function ProjectModuleSelectorPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Interface Points</CardTitle>
+            <CardTitle className="text-sm font-medium">Captured Items</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{project.stats.totalPoints}</CardContent>
+          <CardContent className="text-2xl font-semibold">{project.stats.totalLessons}</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Open Queries</CardTitle>
+            <CardTitle className="text-sm font-medium">Validated</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{project.stats.openIqs}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Critical Items</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">{project.stats.criticalPoints}</CardContent>
+          <CardContent className="text-2xl font-semibold">{project.stats.validatedLessons}</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
@@ -80,35 +76,11 @@ export default function ProjectModuleSelectorPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <LayersIcon className="h-5 w-5" />
-              <CardTitle>Interfaces Module</CardTitle>
-            </div>
-            <CardDescription>
-              Manage interface cases, matrix, tracker, MOC, and interface execution workflows.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li className="flex items-center gap-2"><ListIcon className="h-4 w-4" />Case lifecycle & SLA tracking</li>
-              <li className="flex items-center gap-2"><MessageSquareIcon className="h-4 w-4" />Query and correspondence handling</li>
-            </ul>
-            <Link
-              href={`/projects/${projectId}/modules/interfaces`}
-              className={buttonVariants({ variant: "default" })}
-            >
-              Open Interfaces
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
               <BookOpenIcon className="h-5 w-5" />
               <CardTitle>Lessons Module</CardTitle>
             </div>
             <CardDescription>
-              Capture, validate, and consolidate lessons with links back to interface points.
+              Capture, validate, and consolidate lessons into project actions and reusable guidance.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-between">
@@ -117,9 +89,28 @@ export default function ProjectModuleSelectorPage() {
             </p>
             <Link
               href={`/projects/${projectId}/modules/lessons`}
-              className={buttonVariants({ variant: "outline" })}
+              className={buttonVariants({ variant: "default" })}
             >
               Open Lessons
+            </Link>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <BookOpenCheckIcon className="h-5 w-5" />
+              <CardTitle>Corporate Library</CardTitle>
+            </div>
+            <CardDescription>
+              Browse approved corporate recommended actions and bring them into project execution.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Available to users with corporate lessons access.
+            </p>
+            <Link href="/corporate/library" className={buttonVariants({ variant: "outline" })}>
+              Open Library
             </Link>
           </CardContent>
         </Card>
