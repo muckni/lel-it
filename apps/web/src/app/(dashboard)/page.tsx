@@ -94,7 +94,7 @@ function DashboardContent() {
           <div className="min-h-[400px] flex-1 rounded-xl border border-dashed flex items-center justify-center">
             <div className="text-center text-muted-foreground max-w-sm">
               <WindIcon className="mx-auto h-12 w-12 mb-4" />
-              <h3 className="text-lg font-semibold text-foreground">Welcome to OWIT</h3>
+              <h3 className="text-lg font-semibold text-foreground">Welcome to lel-it</h3>
               <p className="mt-1 text-sm">
                 No projects yet. Create your first project to get started.
               </p>

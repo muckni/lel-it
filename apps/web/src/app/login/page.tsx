@@ -56,9 +56,9 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <WindIcon className="mx-auto h-10 w-10 text-primary mb-2" />
-          <CardTitle className="text-2xl">OWIT</CardTitle>
+          <CardTitle className="text-2xl">lel-it</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Offshore Wind Lessons Tool
+            Lessons Learned IT
           </p>
         </CardHeader>
         <CardContent>

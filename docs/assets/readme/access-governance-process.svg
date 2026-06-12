@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="440" viewBox="0 0 1280 440" role="img" aria-labelledby="title desc">
+  <title id="title">Access and governance model</title>
+  <desc id="desc">Role-based access model for project and corporate Lessons Learned workflows.</desc>
+  <rect width="1280" height="440" fill="#f8fafc"/>
+  <text x="56" y="62" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700" fill="#0f172a">Access and Governance</text>
+  <text x="56" y="92" font-family="Inter, Arial, sans-serif" font-size="15" fill="#475569">Project permissions control contribution and execution. Corporate permissions control reusable guidance, publishing, and source visibility.</text>
+  <g font-family="Inter, Arial, sans-serif">
+    <rect x="56" y="135" width="520" height="235" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="84" y="178" font-size="22" font-weight="700" fill="#0f172a">Project Roles</text>
+    <text x="84" y="216" font-size="15" font-weight="700" fill="#0f766e">ll_lead</text>
+    <text x="184" y="216" font-size="14" fill="#475569">Full project Lessons v2 workflow and exports.</text>
+    <text x="84" y="252" font-size="15" font-weight="700" fill="#0f766e">reviewer</text>
+    <text x="184" y="252" font-size="14" fill="#475569">Validate, cluster, and create recommended actions.</text>
+    <text x="84" y="288" font-size="15" font-weight="700" fill="#0f766e">contributor</text>
+    <text x="184" y="288" font-size="14" fill="#475569">Capture lessons and update owned actions.</text>
+    <text x="84" y="324" font-size="15" font-weight="700" fill="#0f766e">viewer</text>
+    <text x="184" y="324" font-size="14" fill="#475569">Browse project lessons; export only when allowed.</text>
+    <rect x="704" y="135" width="520" height="235" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="732" y="178" font-size="22" font-weight="700" fill="#0f172a">Corporate Roles</text>
+    <text x="732" y="216" font-size="15" font-weight="700" fill="#0f766e">corporate_viewer</text>
+    <text x="900" y="216" font-size="14" fill="#475569">Browse approved corporate guidance.</text>
+    <text x="732" y="252" font-size="15" font-weight="700" fill="#0f766e">corporate_ll_manager</text>
+    <text x="900" y="252" font-size="14" fill="#475569">Review proposals and publish actions.</text>
+    <text x="732" y="288" font-size="15" font-weight="700" fill="#0f766e">senior_management</text>
+    <text x="900" y="288" font-size="14" fill="#475569">View dashboard and source project names.</text>
+    <text x="732" y="324" font-size="15" font-weight="700" fill="#0f766e">corporate_admin</text>
+    <text x="900" y="324" font-size="14" fill="#475569">Administer platform-level reference data.</text>
+  </g>
+  <path d="M576 252h128" stroke="#0f766e" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="604" y="237" font-family="Inter, Arial, sans-serif" font-size="13" fill="#0f766e">transfer proposal</text>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f766e"/>
+    </marker>
+  </defs>
+</svg>

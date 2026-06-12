@@ -16,7 +16,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OWIT - Offshore Wind Lessons Tool",
+  title: "lel-it - Lessons Learned IT",
   description:
     "Lessons learned governance for offshore wind projects from maturation to operations",
 };

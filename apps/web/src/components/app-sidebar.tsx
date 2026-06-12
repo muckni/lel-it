@@ -48,8 +48,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <WindIcon className="size-4" />
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-semibold">OWIT</span>
-                <span className="text-xs text-muted-foreground">Offshore Wind</span>
+                <span className="font-semibold">lel-it</span>
+                <span className="text-xs text-muted-foreground">Lessons Learned IT</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

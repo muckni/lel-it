@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">Project to corporate Lessons Learned process</title>
+  <desc id="desc">Flow from project lesson capture through corporate library publication and project implementation reuse.</desc>
+  <rect width="1280" height="420" fill="#f8fafc"/>
+  <text x="56" y="62" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700" fill="#0f172a">Project to Corporate Lessons Flow</text>
+  <text x="56" y="92" font-family="Inter, Arial, sans-serif" font-size="15" fill="#475569">How a field lesson becomes reusable guidance and a tracked implementation action.</text>
+  <g font-family="Inter, Arial, sans-serif">
+    <g transform="translate(56 145)">
+      <rect width="180" height="120" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="18" y="36" font-size="17" font-weight="700" fill="#0f172a">1. Capture</text>
+      <text x="18" y="66" font-size="13" fill="#475569">Draft or submit a lesson</text>
+      <text x="18" y="86" font-size="13" fill="#475569">with category, phase,</text>
+      <text x="18" y="106" font-size="13" fill="#475569">impact, root cause.</text>
+    </g>
+    <g transform="translate(280 145)">
+      <rect width="180" height="120" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="18" y="36" font-size="17" font-weight="700" fill="#0f172a">2. Review</text>
+      <text x="18" y="66" font-size="13" fill="#475569">Reviewer validates,</text>
+      <text x="18" y="86" font-size="13" fill="#475569">rejects, or requests</text>
+      <text x="18" y="106" font-size="13" fill="#475569">more evidence.</text>
+    </g>
+    <g transform="translate(504 145)">
+      <rect width="180" height="120" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="18" y="36" font-size="17" font-weight="700" fill="#0f172a">3. Cluster</text>
+      <text x="18" y="66" font-size="13" fill="#475569">Validated lessons are</text>
+      <text x="18" y="86" font-size="13" fill="#475569">grouped into recurring</text>
+      <text x="18" y="106" font-size="13" fill="#475569">execution themes.</text>
+    </g>
+    <g transform="translate(728 145)">
+      <rect width="180" height="120" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="18" y="36" font-size="17" font-weight="700" fill="#0f172a">4. Recommend</text>
+      <text x="18" y="66" font-size="13" fill="#475569">Create project actions</text>
+      <text x="18" y="86" font-size="13" fill="#475569">and flag reusable items</text>
+      <text x="18" y="106" font-size="13" fill="#475569">for corporate review.</text>
+    </g>
+    <g transform="translate(952 145)">
+      <rect width="180" height="120" rx="8" fill="#ffffff" stroke="#0f766e" stroke-width="2"/>
+      <text x="18" y="36" font-size="17" font-weight="700" fill="#0f172a">5. Publish</text>
+      <text x="18" y="66" font-size="13" fill="#475569">LL management approves</text>
+      <text x="18" y="86" font-size="13" fill="#475569">corporate guidance into</text>
+      <text x="18" y="106" font-size="13" fill="#475569">the reusable library.</text>
+    </g>
+    <g transform="translate(504 305)">
+      <rect width="404" height="58" rx="8" fill="#ecfdf5" stroke="#99f6e4"/>
+      <text x="20" y="35" font-size="15" font-weight="700" fill="#0f766e">Reuse: add corporate action back into a project and track owner, due date, evidence, verification, and closure.</text>
+    </g>
+  </g>
+  <g stroke="#0f766e" stroke-width="2" fill="none" marker-end="url(#arrow)">
+    <path d="M236 205h44"/>
+    <path d="M460 205h44"/>
+    <path d="M684 205h44"/>
+    <path d="M908 205h44"/>
+    <path d="M1042 265c0 72-148 80-236 80"/>
+  </g>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f766e"/>
+    </marker>
+  </defs>
+</svg>
