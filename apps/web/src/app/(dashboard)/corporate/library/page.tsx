@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  BarChart3Icon,
+  BookOpenCheckIcon,
   FilterIcon,
   LibraryIcon,
   PlusIcon,
@@ -23,6 +25,8 @@ import { useTRPC } from "@/trpc/client";
 
 const corporateNav = [
   { label: "Library", href: "/corporate/library", active: true, icon: LibraryIcon },
+  { label: "Proposals", href: "/corporate/proposals", active: false, icon: BookOpenCheckIcon },
+  { label: "Dashboard", href: "/corporate/dashboard", active: false, icon: BarChart3Icon },
 ] as const;
 
 export default function CorporateLibraryPage() {

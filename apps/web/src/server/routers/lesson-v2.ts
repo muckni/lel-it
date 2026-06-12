@@ -618,6 +618,101 @@ export const lessonV2Router = createTRPCRouter({
       }));
     }),
 
+  listCorporateProposals: protectedProcedure.query(async ({ ctx }) => {
+    const role = await requireV2CorporateCapabilityForUser(ctx.user.id, "review_corporate_proposal");
+    const rows = await db.query.recommendedActions.findMany({
+      where: inArray(recommendedActions.status, ["proposed_for_corporate", "corporate_review"]),
+      with: {
+        category: true,
+        project: { columns: { id: true, name: true } },
+        sourceLesson: { columns: { id: true, title: true, confidentialityLevel: true } },
+        sourceCluster: { columns: { id: true, name: true } },
+      },
+      orderBy: [desc(recommendedActions.transferProposedAt), desc(recommendedActions.createdAt)],
+    });
+    const canSeeSourceProject = role === "corporate_ll_manager" || role === "senior_management";
+    return rows.map((row) => ({
+      ...row,
+      project: canSeeSourceProject ? row.project : null,
+    }));
+  }),
+
+  corporateDashboard: protectedProcedure.query(async ({ ctx }) => {
+    const role = await requireV2CorporateCapabilityForUser(ctx.user.id, "view_corporate_dashboard");
+    const [library, proposals, projectActionRows] = await Promise.all([
+      db.query.corporateRecommendedActions.findMany({
+        with: {
+          category: true,
+          sourceProject: { columns: { id: true, name: true } },
+        },
+        orderBy: [desc(corporateRecommendedActions.publishedAt)],
+      }),
+      db.query.recommendedActions.findMany({
+        where: inArray(recommendedActions.status, ["proposed_for_corporate", "corporate_review"]),
+        with: {
+          category: true,
+          project: { columns: { id: true, name: true } },
+        },
+        orderBy: [desc(recommendedActions.transferProposedAt), desc(recommendedActions.createdAt)],
+      }),
+      db.query.projectActions.findMany({
+        with: {
+          category: true,
+          sourceCorporateAction: true,
+          project: { columns: { id: true, name: true } },
+        },
+        orderBy: [desc(projectActions.createdAt)],
+      }),
+    ]);
+
+    const canSeeSourceProject = role === "corporate_ll_manager" || role === "senior_management";
+    const activeLibrary = library.filter((entry) => entry.status !== "retired");
+    const reusedActionCount = projectActionRows.filter((action) => action.sourceCorporateActionId).length;
+    const implementationCount = projectActionRows.filter((action) =>
+      ["assigned", "in_progress", "implemented", "evidence_submitted", "verified", "closed"].includes(action.status)
+    ).length;
+    const byCategory = activeLibrary.reduce<Record<string, number>>((acc, entry) => {
+      const category = entry.category?.name ?? "Uncategorised";
+      acc[category] = (acc[category] ?? 0) + 1;
+      return acc;
+    }, {});
+    const reuseByProject = projectActionRows
+      .filter((action) => action.sourceCorporateActionId)
+      .reduce<Record<string, { projectId: string; projectName: string | null; count: number }>>((acc, action) => {
+        const key = action.projectId;
+        const current = acc[key] ?? {
+          projectId: key,
+          projectName: canSeeSourceProject ? action.project?.name ?? null : null,
+          count: 0,
+        };
+        current.count += 1;
+        acc[key] = current;
+        return acc;
+      }, {});
+
+    return {
+      summary: {
+        activeLibrary: activeLibrary.length,
+        pendingProposals: proposals.length,
+        reusedActionCount,
+        implementationCount,
+        retired: library.filter((entry) => entry.status === "retired").length,
+      },
+      byCategory: Object.entries(byCategory)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count),
+      reuseByProject: Object.values(reuseByProject).sort((a, b) => b.count - a.count),
+      recentLibrary: library.slice(0, 8).map((entry) => ({
+        ...entry,
+        sourceProject: canSeeSourceProject ? entry.sourceProject : null,
+      })),
+      pendingProposals: proposals.slice(0, 8).map((proposal) => ({
+        ...proposal,
+        project: canSeeSourceProject ? proposal.project : null,
+      })),
+    };
+  }),
+
   listEligibleProjectsForCorporateAdd: protectedProcedure.query(async ({ ctx }) => {
     await requireV2CorporateCapabilityForUser(ctx.user.id, "browse_corporate_library");
     const memberships = await db.query.projectMembers.findMany({
