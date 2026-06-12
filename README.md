@@ -4,7 +4,7 @@ lel-it is a Lessons Learned IT product for offshore wind delivery teams. It supp
 
 The application is currently focused on the Lessons v2 workflow and the corporate governance layer around it.
 
-![Portfolio dashboard](docs/assets/readme/portfolio-dashboard.png)
+![Portfolio dashboard](docs/assets/readme/project_with_ll.png)
 
 ## Product Scope
 
