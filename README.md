@@ -25,8 +25,6 @@ The current product focus is the Lessons v2 workflow:
 apps/web        Next.js application
 packages/db     Drizzle schema, migrations, seed data
 packages/shared Shared enums/types
-packages/3d     3D package retained for domain compatibility
-docs            Product and implementation plans
 ```
 
 ## Local Setup
