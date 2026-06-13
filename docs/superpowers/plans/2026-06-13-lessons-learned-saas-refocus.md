@@ -366,10 +366,27 @@ DROP TYPE IF EXISTS
 Run: `pnpm --filter @owit/db db:migrate` (or apply `0016_lessons_saas_streamline.sql` directly if the journal is out of sync, per README note).
 Expected: migration applies; `\dt` shows ~25 tables remaining.
 
-- [ ] **Step 3: Re-baseline Drizzle metadata**
+- [ ] **Step 3: Re-baseline Drizzle metadata — DEFERRED (documented deviation)**
 
-Run: `pnpm --filter @owit/db exec drizzle-kit generate` to regenerate the snapshot from the trimmed `schema.ts`, then verify `drizzle-kit check` reports no drift.
-Expected: snapshot matches schema; no pending diff.
+The drizzle journal/snapshots in this repo were already out of sync before this
+work (meta snapshots stop at `0013`; migrations `0014`/`0015` were applied
+directly with no journal entry — the README documents this "apply files directly"
+workflow). Running `drizzle-kit generate` now would diff the stale `0013`
+snapshot against the clean `schema.ts` and emit a confusing duplicate of the
+`0016` drops as a new migration. To avoid corrupting the history, the full
+re-baseline/squash is **deferred**: `schema.ts` is the source of truth and
+`0016_lessons_saas_streamline.sql` is the applied forward migration. A clean
+squash can be done later against a disposable DB if desired.
+
+**What was actually applied** (Stage 2 execution record): `0016` was applied to
+the local DB via `psql -f`. Because psql autocommits per statement, the legacy
+`DROP TABLE ... CASCADE` and the attachment-enum migration committed, but the
+final `DROP TYPE` list errored on `ll_type` (used by the retained
+`lessons_v2.type`). The orphaned enums were then dropped safely by computing the
+exact set of public-schema enums no column references (excludes `ll_type`,
+`lesson_v2_status`, `lesson_role_type`, `interface_party_role`, and all
+auth/storage system enums). Final state verified: 25 tables, 20 enums, 47 demo
+lessons intact, `lessons_v2.content jsonb` present, `attachment_entity = ['lesson']`.
 
 - [ ] **Step 4: Commit**
 
