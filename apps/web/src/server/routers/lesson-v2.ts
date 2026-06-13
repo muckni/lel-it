@@ -35,6 +35,7 @@ import {
   requireV2CorporateCapabilityForUser,
   requireV2ProjectCapability,
 } from "@/server/lib/lesson-v2-rbac";
+import { excerptFromContent } from "@/server/lib/lesson-content";
 import {
   assertCorporateTransferAllowed,
   buildLessonV2AuditEvent,
@@ -153,6 +154,22 @@ export const lessonV2Router = createTRPCRouter({
       });
     }),
 
+  getLesson: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid(), lessonId: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      await requireV2ProjectCapability(input.projectId, ctx.user.id, "access_project");
+      const lesson = await db.query.lessonsV2.findFirst({
+        where: and(eq(lessonsV2.id, input.lessonId), eq(lessonsV2.projectId, input.projectId)),
+        with: {
+          category: true,
+          workstream: true,
+          gate: true,
+        },
+      });
+      if (!lesson) throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found" });
+      return lesson;
+    }),
+
   createLesson: protectedProcedure
     .input(
       z.object({
@@ -209,6 +226,61 @@ export const lessonV2Router = createTRPCRouter({
         newValue: lesson,
       });
       return lesson;
+    }),
+
+  updateLesson: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        lessonId: z.string().uuid(),
+        title: z.string().trim().min(1).max(200).optional(),
+        content: z.record(z.string(), z.unknown()).nullable().optional(),
+        type: lessonTypeSchema.optional(),
+        categoryId: z.string().uuid().optional(),
+        observedDate: z.string().date().nullable().optional(),
+        workstreamId: z.string().uuid().nullable().optional(),
+        gateId: z.string().uuid().nullable().optional(),
+        projectPhase: projectPhaseSchema.nullable().optional(),
+        impactLevel: z.string().trim().nullable().optional(),
+        rootCause: z.string().trim().nullable().optional(),
+        sourceOrganisation: z.string().trim().nullable().optional(),
+        confidentialityLevel: confidentialitySchema.optional(),
+        tags: z.array(z.string().trim().min(1)).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const lesson = await getLessonInProject(input.projectId, input.lessonId);
+      if (lesson.authorId !== ctx.user.id) {
+        await requireV2ProjectCapability(input.projectId, ctx.user.id, "edit_any_lesson");
+      } else {
+        await requireV2ProjectCapability(input.projectId, ctx.user.id, "create_lesson");
+      }
+      if (input.categoryId) await assertCategoryExists(input.categoryId);
+
+      const { projectId, lessonId, content, ...rest } = input;
+      const patch: Partial<typeof lessonsV2.$inferInsert> = { ...rest, updatedAt: new Date() };
+      if (content !== undefined) {
+        patch.content = content;
+        if (content) {
+          patch.description = excerptFromContent(content, 280) || lesson.description;
+        }
+      }
+
+      const [updated] = await db
+        .update(lessonsV2)
+        .set(patch)
+        .where(eq(lessonsV2.id, lessonId))
+        .returning();
+      await audit({
+        entityType: "lesson",
+        entityId: lessonId,
+        eventType: "updated",
+        actorId: ctx.user.id,
+        projectId,
+        previousValue: lesson,
+        newValue: updated,
+      });
+      return updated;
     }),
 
   submitLesson: protectedProcedure
