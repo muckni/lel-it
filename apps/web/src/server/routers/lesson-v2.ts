@@ -10,6 +10,7 @@ import {
   lessonClusterLinksV2,
   lessonClustersV2,
   lessonEvidence,
+  lessonComments,
   lessonsV2,
   projectActions,
   projectMembers,
@@ -281,6 +282,60 @@ export const lessonV2Router = createTRPCRouter({
         newValue: updated,
       });
       return updated;
+    }),
+
+  listComments: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid(), lessonId: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      await requireV2ProjectCapability(input.projectId, ctx.user.id, "access_project");
+      return db.query.lessonComments.findMany({
+        where: and(
+          eq(lessonComments.entityType, "lesson"),
+          eq(lessonComments.entityId, input.lessonId)
+        ),
+        orderBy: [lessonComments.createdAt],
+      });
+    }),
+
+  addComment: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        lessonId: z.string().uuid(),
+        body: z.string().trim().min(1).max(4000),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireV2ProjectCapability(input.projectId, ctx.user.id, "access_project");
+      await getLessonInProject(input.projectId, input.lessonId);
+      const [comment] = await db
+        .insert(lessonComments)
+        .values({
+          projectId: input.projectId,
+          entityType: "lesson",
+          entityId: input.lessonId,
+          authorId: ctx.user.id,
+          body: input.body,
+          kind: "comment",
+        })
+        .returning();
+      return comment;
+    }),
+
+  deleteComment: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid(), commentId: z.string().uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      const comment = await db.query.lessonComments.findFirst({
+        where: eq(lessonComments.id, input.commentId),
+      });
+      if (!comment || comment.projectId !== input.projectId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Comment not found" });
+      }
+      if (comment.authorId !== ctx.user.id) {
+        await requireV2ProjectCapability(input.projectId, ctx.user.id, "edit_any_lesson");
+      }
+      await db.delete(lessonComments).where(eq(lessonComments.id, input.commentId));
+      return { success: true };
     }),
 
   submitLesson: protectedProcedure
