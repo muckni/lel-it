@@ -51,7 +51,7 @@ export default function ProjectLessonsV2Page() {
   const projectId = params.projectId;
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const basePath = `/projects/${projectId}/lessons-v2`;
+  const basePath = `/projects/${projectId}/lessons`;
   const [renderedAt] = useState(() => Date.now());
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureForm, setCaptureForm] = useState({
@@ -260,12 +260,6 @@ export default function ProjectLessonsV2Page() {
               ) : null}
             </div>
             <Link
-              href={`/projects/${projectId}/modules/lessons`}
-              className={buttonVariants({ variant: "outline", size: "sm", className: "w-full" })}
-            >
-              Lessons cockpit
-            </Link>
-            <Link
               href="/corporate/library"
               className={buttonVariants({ variant: "outline", size: "sm", className: "w-full" })}
             >
@@ -287,7 +281,12 @@ export default function ProjectLessonsV2Page() {
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate text-sm font-medium">{lesson.title}</p>
+                  <Link
+                    href={`/projects/${projectId}/lessons/${lesson.id}`}
+                    className="truncate text-sm font-medium hover:underline"
+                  >
+                    {lesson.title}
+                  </Link>
                   <span className="rounded bg-muted px-2 py-1 text-xs">
                     {lesson.status.replace(/_/g, " ")}
                   </span>

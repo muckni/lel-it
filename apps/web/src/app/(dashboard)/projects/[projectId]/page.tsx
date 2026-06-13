@@ -28,10 +28,10 @@ export default function ProjectModuleSelectorPage() {
     const key = `owit.project.${projectId}.module`;
     const remembered = window.localStorage.getItem(key) as ProjectModuleKey | null;
     if (remembered && remembered in PROJECT_MODULES) {
-      router.replace(`/projects/${projectId}/modules/${remembered}`);
+      router.replace(`/projects/${projectId}/lessons`);
       return;
     }
-    router.replace(`/projects/${projectId}/modules/lessons`);
+    router.replace(`/projects/${projectId}/lessons`);
   }, [forceSelector, project, projectId, router]);
 
   if (isLoading) {
@@ -88,7 +88,7 @@ export default function ProjectModuleSelectorPage() {
               Project members can capture lessons quickly, while editors and admins handle governance.
             </p>
             <Link
-              href={`/projects/${projectId}/modules/lessons`}
+              href={`/projects/${projectId}/lessons`}
               className={buttonVariants({ variant: "default" })}
             >
               Open Lessons
