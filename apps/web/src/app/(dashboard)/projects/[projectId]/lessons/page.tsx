@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -37,14 +37,26 @@ import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 
 const projectNav = [
-  { label: "Dashboard", href: "", icon: BarChart3Icon, active: true },
-  { label: "Lessons", href: "#lessons", icon: Rows3Icon, active: false },
-  { label: "Review queue", href: "#review", icon: ClipboardCheckIcon, active: false },
-  { label: "Clusters", href: "#clusters", icon: Layers3Icon, active: false },
-  { label: "Recommended actions", href: "#recommended-actions", icon: MessageSquareTextIcon, active: false },
-  { label: "Actions", href: "#actions", icon: ListChecksIcon, active: false },
-  { label: "Reports", href: "#reports", icon: FileTextIcon, active: false },
+  { id: "dashboard", label: "Dashboard", href: "", icon: BarChart3Icon },
+  { id: "lessons", label: "Lessons", href: "#lessons", icon: Rows3Icon },
+  { id: "review", label: "Review queue", href: "#review", icon: ClipboardCheckIcon },
+  { id: "clusters", label: "Clusters", href: "#clusters", icon: Layers3Icon },
+  {
+    id: "recommended-actions",
+    label: "Recommended actions",
+    href: "#recommended-actions",
+    icon: MessageSquareTextIcon,
+  },
+  { id: "actions", label: "Actions", href: "#actions", icon: ListChecksIcon },
+  { id: "reports", label: "Reports", href: "#reports", icon: FileTextIcon },
 ] as const;
+
+type CockpitSection = (typeof projectNav)[number]["id"];
+
+function getSectionFromHash(hash: string): CockpitSection {
+  const value = hash.replace("#", "");
+  return (projectNav.find((item) => item.id === value)?.id ?? "dashboard") as CockpitSection;
+}
 
 export default function ProjectLessonsV2Page() {
   const params = useParams<{ projectId: string }>();
@@ -52,6 +64,7 @@ export default function ProjectLessonsV2Page() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const basePath = `/projects/${projectId}/lessons`;
+  const [activeSection, setActiveSection] = useState<CockpitSection>("dashboard");
   const [renderedAt] = useState(() => Date.now());
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureForm, setCaptureForm] = useState({
@@ -73,6 +86,13 @@ export default function ProjectLessonsV2Page() {
   const { data: projectActions = [] } = useQuery(
     trpc.lessonV2.listProjectActions.queryOptions({ projectId })
   );
+  useEffect(() => {
+    setActiveSection(getSectionFromHash(window.location.hash));
+
+    const onHashChange = () => setActiveSection(getSectionFromHash(window.location.hash));
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
   const createLesson = useMutation(
     trpc.lessonV2.createLesson.mutationOptions({
       onSuccess: async () => {
@@ -165,6 +185,9 @@ export default function ProjectLessonsV2Page() {
     },
   ] as const;
 
+  const reviewLessons = lessons.filter((lesson) => ["submitted", "under_review"].includes(lesson.status));
+  const draftLessons = lessons.filter((lesson) => lesson.status === "draft");
+
   return (
     <div className="flex flex-1 flex-col gap-5 p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -192,14 +215,16 @@ export default function ProjectLessonsV2Page() {
         {projectNav.map((item) => {
           const Icon = item.icon;
           const href = item.href ? `${basePath}${item.href}` : basePath;
+          const isActive = activeSection === item.id;
 
           return (
             <Link
               key={item.label}
               href={href}
+              onClick={() => setActiveSection(item.id)}
               className={cn(
                 "flex items-center gap-2 border-b-2 px-2 py-3 text-sm font-medium whitespace-nowrap",
-                item.active
+                isActive
                   ? "border-emerald-600 text-emerald-700"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
@@ -211,145 +236,276 @@ export default function ProjectLessonsV2Page() {
         })}
       </nav>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {statusCards.map((card) => (
-          <Card key={card.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">{card.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold">{card.value}</p>
-              <p className="text-xs text-muted-foreground">{card.note}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Queues</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-4">
-            {workflowQueues.map((item) => (
-              <Link
-                key={item.label}
-                href={`${basePath}${item.href}`}
-                className="rounded border p-3 hover:bg-muted/50"
-              >
-                <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
-                <p className="mt-2 text-2xl font-semibold">{item.value}</p>
-              </Link>
+      {activeSection === "dashboard" ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {statusCards.map((card) => (
+              <Card key={card.label}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{card.label}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold">{card.value}</p>
+                  <p className="text-xs text-muted-foreground">{card.note}</p>
+                </CardContent>
+              </Card>
             ))}
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Queues</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-4">
+                {workflowQueues.map((item) => (
+                  <Link
+                    key={item.label}
+                    href={`${basePath}${item.href}`}
+                    onClick={() => setActiveSection(getSectionFromHash(item.href))}
+                    className="rounded border p-3 hover:bg-muted/50"
+                  >
+                    <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
+                    <p className="mt-2 text-2xl font-semibold">{item.value}</p>
+                  </Link>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Categories</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex flex-wrap gap-2">
+                  {categories.slice(0, 8).map((category) => (
+                    <span key={category.id} className="rounded border px-2 py-1 text-xs">
+                      {category.name}
+                    </span>
+                  ))}
+                  {categories.length === 0 ? (
+                    <span className="text-muted-foreground">No categories.</span>
+                  ) : null}
+                </div>
+                <Link
+                  href="/corporate/library"
+                  className={buttonVariants({ variant: "outline", size: "sm", className: "w-full" })}
+                >
+                  Corporate Library
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      ) : null}
+
+      {activeSection === "lessons" ? (
+        <Card id="lessons">
           <CardHeader>
-            <CardTitle className="text-base">Categories</CardTitle>
+            <CardTitle className="text-base">Lessons</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex flex-wrap gap-2">
-              {categories.slice(0, 8).map((category) => (
-                <span key={category.id} className="rounded border px-2 py-1 text-xs">
-                  {category.name}
-                </span>
-              ))}
-              {categories.length === 0 ? (
-                <span className="text-muted-foreground">No categories.</span>
-              ) : null}
-            </div>
-            <Link
-              href="/corporate/library"
-              className={buttonVariants({ variant: "outline", size: "sm", className: "w-full" })}
-            >
-              Corporate Library
-            </Link>
+          <CardContent className="space-y-2">
+            {lessons.slice(0, 10).map((lesson) => (
+              <div
+                key={lesson.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded border p-3"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/projects/${projectId}/lessons/${lesson.id}`}
+                      className="truncate text-sm font-medium hover:underline"
+                    >
+                      {lesson.title}
+                    </Link>
+                    <span className="rounded bg-muted px-2 py-1 text-xs">
+                      {lesson.status.replace(/_/g, " ")}
+                    </span>
+                    <span className="rounded border px-2 py-1 text-xs">
+                      {lesson.category.name}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                    {lesson.description}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {lesson.status === "draft" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={submitLesson.isPending}
+                      onClick={() =>
+                        submitLesson.mutate({ projectId, lessonId: lesson.id })
+                      }
+                    >
+                      Submit
+                    </Button>
+                  ) : null}
+                  {lesson.status === "submitted" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={decideLesson.isPending}
+                      onClick={() =>
+                        decideLesson.mutate({
+                          projectId,
+                          lessonId: lesson.id,
+                          decision: "start_review",
+                        })
+                      }
+                    >
+                      Start review
+                    </Button>
+                  ) : null}
+                  {lesson.status === "under_review" ? (
+                    <Button
+                      size="sm"
+                      disabled={decideLesson.isPending}
+                      onClick={() =>
+                        decideLesson.mutate({
+                          projectId,
+                          lessonId: lesson.id,
+                          decision: "validate",
+                        })
+                      }
+                    >
+                      Validate
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+            {lessons.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No lessons.</p>
+            ) : null}
           </CardContent>
         </Card>
-      </div>
+      ) : null}
 
-      <Card id="lessons">
-        <CardHeader>
-          <CardTitle className="text-base">Lessons</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {lessons.slice(0, 10).map((lesson) => (
-            <div
-              key={lesson.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded border p-3"
-            >
-              <div className="min-w-0">
+      {activeSection === "review" ? (
+        <Card id="review">
+          <CardHeader>
+            <CardTitle className="text-base">Review queue</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {reviewLessons.map((lesson) => (
+              <div key={lesson.id} className="rounded border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
                     href={`/projects/${projectId}/lessons/${lesson.id}`}
-                    className="truncate text-sm font-medium hover:underline"
+                    className="text-sm font-medium hover:underline"
                   >
                     {lesson.title}
                   </Link>
                   <span className="rounded bg-muted px-2 py-1 text-xs">
                     {lesson.status.replace(/_/g, " ")}
                   </span>
-                  <span className="rounded border px-2 py-1 text-xs">
-                    {lesson.category.name}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{lesson.description}</p>
+              </div>
+            ))}
+            {reviewLessons.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No lessons in review.</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activeSection === "clusters" ? (
+        <Card id="clusters">
+          <CardHeader>
+            <CardTitle className="text-base">Clusters</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {clusters.map((cluster) => (
+              <div key={cluster.id} className="rounded border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium">{cluster.name}</span>
+                  <span className="rounded bg-muted px-2 py-1 text-xs">
+                    {cluster.status.replace(/_/g, " ")}
                   </span>
                 </div>
-                <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                  {lesson.description}
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{cluster.summary}</p>
               </div>
-              <div className="flex gap-2">
-                {lesson.status === "draft" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={submitLesson.isPending}
-                    onClick={() =>
-                      submitLesson.mutate({ projectId, lessonId: lesson.id })
-                    }
-                  >
-                    Submit
-                  </Button>
-                ) : null}
-                {lesson.status === "submitted" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={decideLesson.isPending}
-                    onClick={() =>
-                      decideLesson.mutate({
-                        projectId,
-                        lessonId: lesson.id,
-                        decision: "start_review",
-                      })
-                    }
-                  >
-                    Start review
-                  </Button>
-                ) : null}
-                {lesson.status === "under_review" ? (
-                  <Button
-                    size="sm"
-                    disabled={decideLesson.isPending}
-                    onClick={() =>
-                      decideLesson.mutate({
-                        projectId,
-                        lessonId: lesson.id,
-                        decision: "validate",
-                      })
-                    }
-                  >
-                    Validate
-                  </Button>
-                ) : null}
+            ))}
+            {clusters.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No clusters yet.</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activeSection === "recommended-actions" ? (
+        <Card id="recommended-actions">
+          <CardHeader>
+            <CardTitle className="text-base">Recommended actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {recommendedActions.map((action) => (
+              <div key={action.id} className="rounded border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium">{action.title}</span>
+                  <span className="rounded bg-muted px-2 py-1 text-xs">
+                    {action.status.replace(/_/g, " ")}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{action.actionDescription}</p>
               </div>
+            ))}
+            {recommendedActions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recommended actions.</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activeSection === "actions" ? (
+        <Card id="actions">
+          <CardHeader>
+            <CardTitle className="text-base">Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {projectActions.map((action) => (
+              <div key={action.id} className="rounded border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium">{action.title}</span>
+                  <span className="rounded bg-muted px-2 py-1 text-xs">
+                    {action.status.replace(/_/g, " ")}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{action.actionDescription}</p>
+              </div>
+            ))}
+            {projectActions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No actions yet.</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activeSection === "reports" ? (
+        <Card id="reports">
+          <CardHeader>
+            <CardTitle className="text-base">Reports</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {statusCards.map((card) => (
+              <div key={card.label} className="rounded border p-3">
+                <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
+                <p className="mt-2 text-2xl font-semibold">{card.value}</p>
+                <p className="text-xs text-muted-foreground">{card.note}</p>
+              </div>
+            ))}
+            <div className="sm:col-span-2 xl:col-span-4 rounded border p-3">
+              <p className="text-sm font-medium">Draft lessons</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {draftLessons.length} lesson{draftLessons.length === 1 ? "" : "s"} waiting to be submitted.
+              </p>
             </div>
-          ))}
-          {lessons.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No lessons.</p>
-          ) : null}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Dialog open={captureOpen} onOpenChange={setCaptureOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -439,7 +595,10 @@ export default function ProjectLessonsV2Page() {
               >
                 Save draft
               </Button>
-              <Button disabled={createLesson.isPending || categories.length === 0}>
+              <Button
+                type="submit"
+                disabled={createLesson.isPending || categories.length === 0}
+              >
                 Submit
               </Button>
             </DialogFooter>

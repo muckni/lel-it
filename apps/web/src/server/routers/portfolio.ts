@@ -1,14 +1,15 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { db, portfolios, projectMembers, projects } from "@owit/db";
-import { eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const portfolioRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
+    type ProjectRow = Awaited<ReturnType<typeof db.query.projects.findMany>>[number];
+
     const ownedPortfolios = await db.query.portfolios.findMany({
       where: eq(portfolios.ownerId, ctx.user.id),
-      with: { projects: true },
     });
 
     const memberRows = await db.query.projectMembers.findMany({
@@ -22,9 +23,12 @@ export const portfolioRouter = createTRPCRouter({
       },
     });
 
-    const byPortfolio = new Map<string, (typeof ownedPortfolios)[number]>();
+    const byPortfolio = new Map<
+      string,
+      (typeof ownedPortfolios)[number] & { projects: ProjectRow[] }
+    >();
     for (const portfolio of ownedPortfolios) {
-      byPortfolio.set(portfolio.id, portfolio);
+      byPortfolio.set(portfolio.id, { ...portfolio, projects: [] });
     }
 
     for (const member of memberRows) {
@@ -34,16 +38,28 @@ export const portfolioRouter = createTRPCRouter({
 
       const existing = byPortfolio.get(portfolio.id);
       if (existing) {
-        if (!existing.projects.some((row) => row.id === project.id)) {
-          existing.projects.push(project);
-        }
         continue;
       }
 
-      byPortfolio.set(portfolio.id, {
-        ...portfolio,
-        projects: [project],
-      });
+      byPortfolio.set(portfolio.id, { ...portfolio, projects: [] });
+    }
+
+    const portfolioIds = [...byPortfolio.keys()];
+    if (portfolioIds.length === 0) {
+      return [];
+    }
+
+    const accessibleProjects = await db.query.projects.findMany({
+      where: inArray(projects.portfolioId, portfolioIds),
+      orderBy: [desc(projects.createdAt)],
+    });
+
+    for (const project of accessibleProjects) {
+      const portfolio = byPortfolio.get(project.portfolioId);
+      if (!portfolio) continue;
+      if (!portfolio.projects.some((row) => row.id === project.id)) {
+        portfolio.projects.push(project);
+      }
     }
 
     return Array.from(byPortfolio.values());

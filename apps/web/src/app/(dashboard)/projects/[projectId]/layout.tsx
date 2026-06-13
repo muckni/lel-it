@@ -39,10 +39,12 @@ export default function ProjectLayout({
   const trpc = useTRPC();
   const basePath = `/projects/${projectId}`;
   const moduleMemoryKey = `owit.project.${projectId}.module`;
+  const isProjectOverviewRoute = pathname === basePath;
 
-  const { data: project } = useQuery(
-    trpc.project.getById.queryOptions({ id: projectId })
-  );
+  const { data: project } = useQuery({
+    ...trpc.project.getById.queryOptions({ id: projectId }),
+    enabled: isProjectOverviewRoute,
+  });
 
   const activeModule =
     inferProjectModuleFromPath(pathname) ?? ("lessons" as ProjectModuleKey);

@@ -29,14 +29,28 @@ import {
 } from "lucide-react";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+type SidebarProject = {
+  id: string;
+  name: string;
+};
+
+type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
+  initialProjects?: SidebarProject[];
+};
+
+export function AppSidebar({ initialProjects, ...props }: AppSidebarProps) {
   const trpc = useTRPC();
   const pathname = usePathname();
   const [openCreateDialog, setOpenCreateDialog] = React.useState(false);
+  const { data: portfolios = [] } = useQuery(
+    {
+      ...trpc.portfolio.list.queryOptions(),
+      enabled: initialProjects === undefined,
+    }
+  );
 
-  const { data: portfolios = [] } = useQuery(trpc.portfolio.list.queryOptions());
-
-  const projects = portfolios.flatMap((p) => p.projects ?? []);
+  const projects: SidebarProject[] =
+    initialProjects ?? portfolios.flatMap((p) => p.projects ?? []);
 
   return (
     <Sidebar collapsible="icon" {...props}>
