@@ -22,20 +22,35 @@ import {
   WindIcon,
   FolderIcon,
   PlusIcon,
-  LayoutDashboardIcon,
   BarChart3Icon,
   LibraryIcon,
+  Rows3Icon,
+  MessageSquareTextIcon,
 } from "lucide-react";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+type SidebarProject = {
+  id: string;
+  name: string;
+};
+
+type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
+  initialProjects?: SidebarProject[];
+};
+
+export function AppSidebar({ initialProjects, ...props }: AppSidebarProps) {
   const trpc = useTRPC();
   const pathname = usePathname();
   const [openCreateDialog, setOpenCreateDialog] = React.useState(false);
+  const { data: portfolios = [] } = useQuery(
+    {
+      ...trpc.portfolio.list.queryOptions(),
+      enabled: initialProjects === undefined,
+    }
+  );
 
-  const { data: portfolios = [] } = useQuery(trpc.portfolio.list.queryOptions());
-
-  const projects = portfolios.flatMap((p) => p.projects ?? []);
+  const projects: SidebarProject[] =
+    initialProjects ?? portfolios.flatMap((p) => p.projects ?? []);
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -49,7 +64,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
                 <span className="font-semibold">lel-it</span>
-                <span className="text-xs text-muted-foreground">Lessons Learned IT</span>
+                <span className="text-xs text-muted-foreground">Lessons Learned</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -57,16 +72,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Portfolio dashboard link */}
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
                 render={<a href="/" />}
-                isActive={pathname === "/"}
+                isActive={pathname === "/" || pathname.startsWith("/projects")}
               >
-                <LayoutDashboardIcon className="size-4" />
-                <span>Dashboard</span>
+                <Rows3Icon className="size-4" />
+                <span>Lessons</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -76,6 +90,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               >
                 <LibraryIcon className="size-4" />
                 <span>Corporate Library</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<a href="/corporate/proposals" />}
+                isActive={pathname.startsWith("/corporate/proposals")}
+              >
+                <MessageSquareTextIcon className="size-4" />
+                <span>Corporate Proposals</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>

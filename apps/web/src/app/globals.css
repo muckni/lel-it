@@ -123,3 +123,53 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .prose {
+    color: inherit;
+    line-height: 1.7;
+  }
+
+  .prose > * + * {
+    margin-top: 0.9rem;
+  }
+
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4,
+  .prose h5,
+  .prose h6 {
+    font-weight: 600;
+    line-height: 1.2;
+    margin-top: 1.4em;
+    margin-bottom: 0.5em;
+  }
+
+  .prose p {
+    margin: 0;
+  }
+
+  .prose ul,
+  .prose ol {
+    padding-left: 1.5rem;
+    margin: 0.75rem 0;
+  }
+
+  .prose ul {
+    list-style: disc;
+  }
+
+  .prose ol {
+    list-style: decimal;
+  }
+
+  .prose li + li {
+    margin-top: 0.25rem;
+  }
+
+  .prose a {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+}

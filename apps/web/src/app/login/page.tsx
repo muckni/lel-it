@@ -55,10 +55,10 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <WindIcon className="mx-auto h-10 w-10 text-primary mb-2" />
+          <WindIcon className="mx-auto mb-2 h-10 w-10 text-primary" />
           <CardTitle className="text-2xl">lel-it</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Lessons Learned IT
+            Lessons Learned for offshore wind delivery
           </p>
         </CardHeader>
         <CardContent>
@@ -104,7 +104,7 @@ export default function LoginPage() {
             >
               {isSignUp
                 ? "Already have an account? Sign in"
-                : "Don't have an account? Sign up"}
+                : "Need access? Sign up"}
             </button>
           </div>
         </CardContent>

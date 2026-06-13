@@ -51,16 +51,6 @@ The corporate dashboard gives senior stakeholders a roll-up of active library it
 
 ![Corporate dashboard](docs/assets/readme/corporate-dashboard.png)
 
-## Process Views
-
-### Project-To-Corporate Flow
-
-![Project to corporate process](docs/assets/readme/project-to-corporate-process.svg)
-
-### Access And Governance Flow
-
-![Access and governance process](docs/assets/readme/access-governance-process.svg)
-
 ## Core Workflows
 
 ### Project Workflow
@@ -161,7 +151,7 @@ pnpm --dir apps/web dev
 
 Open:
 
-- Project lessons: `/projects/<project-id>/lessons-v2`
+- Project lessons: `/projects/<project-id>/lessons`
 - Corporate library: `/corporate/library`
 - Corporate proposals: `/corporate/proposals`
 - Corporate dashboard: `/corporate/dashboard`
@@ -179,6 +169,5 @@ apps/web/node_modules/.bin/tsc -p packages/shared/tsconfig.json --noEmit --typeR
 
 ## Notes
 
-- Legacy interface-management UI routes have been removed from the web app. Backend/domain tables are retained where existing data or historical references still depend on them.
 - Corporate library browsing is available broadly; proposal publishing and source project visibility remain role-gated.
 - The local demo seed is for development and presentation data only.

@@ -17,7 +17,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notification-bell";
 import { LogoutButton } from "@/components/logout-button";
-import { ProjectModuleSwitcher } from "@/components/project-module-switcher";
 import {
   PROJECT_MODULES,
   inferProjectModuleFromPath,
@@ -26,7 +25,6 @@ import {
 import { useTRPC } from "@/trpc/client";
 
 function navHref(basePath: string, href: string) {
-  if (href.startsWith("/lessons-portfolio")) return href;
   return `${basePath}${href}`;
 }
 
@@ -41,10 +39,12 @@ export default function ProjectLayout({
   const trpc = useTRPC();
   const basePath = `/projects/${projectId}`;
   const moduleMemoryKey = `owit.project.${projectId}.module`;
+  const isProjectOverviewRoute = pathname === basePath;
 
-  const { data: project } = useQuery(
-    trpc.project.getById.queryOptions({ id: projectId })
-  );
+  const { data: project } = useQuery({
+    ...trpc.project.getById.queryOptions({ id: projectId }),
+    enabled: isProjectOverviewRoute,
+  });
 
   const activeModule =
     inferProjectModuleFromPath(pathname) ?? ("lessons" as ProjectModuleKey);
@@ -89,7 +89,6 @@ export default function ProjectLayout({
           </Breadcrumb>
 
           <div className="ml-auto flex items-center gap-2 pr-2">
-            <ProjectModuleSwitcher />
             <NotificationBell />
             <LogoutButton />
           </div>
@@ -101,9 +100,7 @@ export default function ProjectLayout({
           {activeContract.nav.map((item) => {
             const href = navHref(basePath, item.href);
             const isActive =
-              href === "/lessons-portfolio"
-                ? pathname.startsWith("/lessons-portfolio")
-                : pathname === href || pathname.startsWith(`${href}/`);
+              pathname === href || pathname.startsWith(`${href}/`);
 
             return (
               <Link

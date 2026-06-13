@@ -4,36 +4,12 @@ import {
   db,
   projects,
   projectMembers,
-  memberWorkPackages,
-  workPackages,
-  interfaceRegisters,
-  interfaceAgreements,
-  interfacePoints,
-  interfaceQueries,
-  lessonsLearned,
+  lessonsV2,
+  projectActions,
 } from "@owit/db";
-import { eq, and, inArray, sql, count } from "drizzle-orm";
+import { eq, and, notInArray, sql, count } from "drizzle-orm";
 import { requireRole, getProjectRole, assertMember } from "@/server/lib/rbac";
-import { TRPCError } from "@trpc/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-async function validateWorkPackagesBelongToProject(
-  workPackageIds: string[],
-  projectId: string
-): Promise<void> {
-  const pkgs = await db.query.workPackages.findMany({
-    where: eq(workPackages.projectId, projectId),
-    columns: { id: true },
-  });
-  const valid = new Set(pkgs.map((p) => p.id));
-  const invalid = workPackageIds.filter((id) => !valid.has(id));
-  if (invalid.length > 0) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `Work packages do not belong to this project: ${invalid.join(", ")}`,
-    });
-  }
-}
 
 export const projectRouter = createTRPCRouter({
   // ── Queries ──────────────────────────────────────────────────────────────
@@ -44,7 +20,6 @@ export const projectRouter = createTRPCRouter({
       await assertMember(ctx.user.id, input.id);
       const project = await db.query.projects.findFirst({
         where: eq(projects.id, input.id),
-        with: { workPackages: { orderBy: workPackages.code } },
       });
       if (!project) return null;
 
@@ -54,99 +29,34 @@ export const projectRouter = createTRPCRouter({
         .where(eq(projectMembers.projectId, input.id));
       const [totalLessonsRow] = await db
         .select({ count: count() })
-        .from(lessonsLearned)
-        .where(eq(lessonsLearned.projectId, input.id));
+        .from(lessonsV2)
+        .where(eq(lessonsV2.projectId, input.id));
       const [validatedLessonsRow] = await db
         .select({ count: count() })
-        .from(lessonsLearned)
+        .from(lessonsV2)
         .where(
           and(
-            eq(lessonsLearned.projectId, input.id),
-            inArray(lessonsLearned.status, ["validated", "consolidated", "closed"])
+            eq(lessonsV2.projectId, input.id),
+            eq(lessonsV2.status, "validated")
           )
         );
-
-      // Summary stats via report-style queries
-      const registers = await db
-        .select({ id: interfaceRegisters.id })
-        .from(interfaceRegisters)
-        .where(eq(interfaceRegisters.projectId, input.id));
-
-      const registerIds = registers.map((r) => r.id);
-
-      let totalPoints = 0;
-      let criticalPoints = 0;
-      let resolvedPoints = 0;
-      let openIqs = 0;
-
-      if (registerIds.length > 0) {
-        const agreements = await db
-          .select({ id: interfaceAgreements.id })
-          .from(interfaceAgreements)
-          .where(inArray(interfaceAgreements.registerId, registerIds));
-
-        const agreementIds = agreements.map((a) => a.id);
-
-        if (agreementIds.length > 0) {
-          const [pts] = await db
-            .select({ count: count() })
-            .from(interfacePoints)
-            .where(inArray(interfacePoints.agreementId, agreementIds));
-          totalPoints = pts.count;
-
-          const [critical] = await db
-            .select({ count: count() })
-            .from(interfacePoints)
-            .where(
-              and(
-                inArray(interfacePoints.agreementId, agreementIds),
-                eq(interfacePoints.criticality, "critical")
-              )
-            );
-          criticalPoints = critical.count;
-
-          const [resolved] = await db
-            .select({ count: count() })
-            .from(interfacePoints)
-            .where(
-              and(
-                inArray(interfacePoints.agreementId, agreementIds),
-                eq(interfacePoints.status, "resolved")
-              )
-            );
-          resolvedPoints = resolved.count;
-
-          const points = await db
-            .select({ id: interfacePoints.id })
-            .from(interfacePoints)
-            .where(inArray(interfacePoints.agreementId, agreementIds));
-
-          const pointIds = points.map((p) => p.id);
-          if (pointIds.length > 0) {
-            const [iqs] = await db
-              .select({ count: count() })
-              .from(interfaceQueries)
-              .where(
-                and(
-                  inArray(interfaceQueries.interfacePointId, pointIds),
-                  inArray(interfaceQueries.status, ["open", "responded"])
-                )
-              );
-            openIqs = iqs.count;
-          }
-        }
-      }
+      const [openActionsRow] = await db
+        .select({ count: count() })
+        .from(projectActions)
+        .where(
+          and(
+            eq(projectActions.projectId, input.id),
+            notInArray(projectActions.status, ["closed", "cancelled"])
+          )
+        );
 
       return {
         ...project,
         memberCount: memberCount.count,
         stats: {
-          totalPoints,
-          criticalPoints,
-          resolvedPoints,
-          openIqs,
           totalLessons: totalLessonsRow.count,
           validatedLessons: validatedLessonsRow.count,
+          openActions: openActionsRow.count,
         },
       };
     }),
@@ -165,11 +75,6 @@ export const projectRouter = createTRPCRouter({
       await assertMember(ctx.user.id, input.projectId);
       const members = await db.query.projectMembers.findMany({
         where: eq(projectMembers.projectId, input.projectId),
-        with: {
-          memberWorkPackages: {
-            with: { workPackage: { columns: { id: true, code: true, name: true, color: true } } },
-          },
-        },
         orderBy: projectMembers.createdAt,
       });
 
@@ -195,7 +100,6 @@ export const projectRouter = createTRPCRouter({
         role: m.role,
         email: authUsers[m.userId]?.email ?? "—",
         name: authUsers[m.userId]?.name ?? "—",
-        workPackages: m.memberWorkPackages.map((mwp) => mwp.workPackage),
         createdAt: m.createdAt,
       }));
     }),
@@ -209,7 +113,6 @@ export const projectRouter = createTRPCRouter({
         projectId: z.string().uuid(),
         email: z.string().email(),
         role: z.enum(["admin", "editor", "viewer"]).default("viewer"),
-        workPackageIds: z.array(z.string().uuid()).default([]),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -237,20 +140,6 @@ export const projectRouter = createTRPCRouter({
         })
         .returning();
 
-      // P1-2: validate work packages belong to this project
-      if (input.workPackageIds.length > 0) {
-        await validateWorkPackagesBelongToProject(input.workPackageIds, input.projectId);
-        await db
-          .delete(memberWorkPackages)
-          .where(eq(memberWorkPackages.memberId, member.id));
-        await db.insert(memberWorkPackages).values(
-          input.workPackageIds.map((wpId) => ({
-            memberId: member.id,
-            workPackageId: wpId,
-          }))
-        ).onConflictDoNothing();
-      }
-
       return member;
     }),
 
@@ -260,7 +149,6 @@ export const projectRouter = createTRPCRouter({
         projectId: z.string().uuid(),
         memberId: z.string().uuid(),
         role: z.enum(["admin", "editor", "viewer"]).optional(),
-        workPackageIds: z.array(z.string().uuid()).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -276,24 +164,6 @@ export const projectRouter = createTRPCRouter({
               eq(projectMembers.projectId, input.projectId)
             )
           );
-      }
-
-      if (input.workPackageIds !== undefined) {
-        // P1-2: validate packages belong to this project
-        if (input.workPackageIds.length > 0) {
-          await validateWorkPackagesBelongToProject(input.workPackageIds, input.projectId);
-        }
-        await db
-          .delete(memberWorkPackages)
-          .where(eq(memberWorkPackages.memberId, input.memberId));
-        if (input.workPackageIds.length > 0) {
-          await db.insert(memberWorkPackages).values(
-            input.workPackageIds.map((wpId) => ({
-              memberId: input.memberId,
-              workPackageId: wpId,
-            }))
-          ).onConflictDoNothing();
-        }
       }
 
       return { success: true };

@@ -49,7 +49,7 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+      if (event === "SIGNED_OUT") {
         queryClient.clear();
       }
     });
