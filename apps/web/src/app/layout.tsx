@@ -16,9 +16,9 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "lel-it - Lessons Learned IT",
+  title: "lel-it - Lessons Learned",
   description:
-    "Lessons learned governance for offshore wind projects from maturation to operations",
+    "Lessons learned governance for offshore wind projects across capture, review, reuse, and delivery",
 };
 
 export default function RootLayout({
