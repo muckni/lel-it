@@ -25,7 +25,6 @@ import {
 import { useTRPC } from "@/trpc/client";
 
 function navHref(basePath: string, href: string) {
-  if (href.startsWith("/lessons-portfolio")) return href;
   return `${basePath}${href}`;
 }
 
@@ -99,9 +98,7 @@ export default function ProjectLayout({
           {activeContract.nav.map((item) => {
             const href = navHref(basePath, item.href);
             const isActive =
-              href === "/lessons-portfolio"
-                ? pathname.startsWith("/lessons-portfolio")
-                : pathname === href || pathname.startsWith(`${href}/`);
+              pathname === href || pathname.startsWith(`${href}/`);
 
             return (
               <Link

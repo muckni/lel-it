@@ -11,7 +11,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -162,14 +162,6 @@ export default function CorporateLibraryPage() {
                 </CardContent>
               </Card>
             ) : null}
-          </div>
-          <div className="flex justify-end">
-            <Link
-              href="/lessons-portfolio"
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              Portfolio cockpit
-            </Link>
           </div>
         </div>
       </div>

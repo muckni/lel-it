@@ -11,9 +11,4 @@ export const featureFlags = {
     process.env.NEXT_PUBLIC_FF_THREED_REPRESENTATIVE_MODE,
     true
   ),
-  lessonsWorkflowV101: envEnabled(process.env.NEXT_PUBLIC_FF_LESSONS_WORKFLOW_V101, true),
-  lessonsPortfolioCockpit: envEnabled(
-    process.env.NEXT_PUBLIC_FF_LESSONS_PORTFOLIO_COCKPIT,
-    true
-  ),
 };

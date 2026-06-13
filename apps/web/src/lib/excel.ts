@@ -7,41 +7,6 @@ export function exportToExcel(data: Record<string, unknown>[], filename: string)
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
-export function exportInterfacePoints(points: any[], projectCode = "export") {
-  const rows = points.map((p) => ({
-    Code: p.code,
-    Title: p.title,
-    Status: p.status,
-    Criticality: p.criticality,
-    Phase: p.phase ?? "",
-    "Due Date": p.dueDate ?? "",
-    Description: p.description ?? "",
-    "Agreement Code": p.agreement?.code ?? "",
-    "Register Code": p.agreement?.register?.code ?? "",
-    "Package A": p.agreement?.register?.packageA?.code ?? "",
-    "Package B": p.agreement?.register?.packageB?.code ?? "",
-    "Deliverables": (p.deliverables?.length ?? 0),
-    "Queries": (p.queries?.length ?? 0),
-  }));
-  exportToExcel(rows, `interface-points-${projectCode}`);
-}
-
-export function exportInterfaceQueries(queries: any[], projectCode = "export") {
-  const rows = queries.map((q) => ({
-    Code: q.code,
-    Subject: q.subject,
-    Status: q.status,
-    Priority: q.priority,
-    "Raised By": q.raisedByPackage?.code ?? "",
-    "Assigned To": q.assignedToPackage?.code ?? "",
-    "Interface Point": q.interfacePoint?.code ?? "",
-    "Due Date": q.dueDate ?? "",
-    "Responses": (q.responses?.length ?? 0),
-    Description: q.description ?? "",
-  }));
-  exportToExcel(rows, `interface-queries-${projectCode}`);
-}
-
 // Parse uploaded Excel file → array of row objects
 export function parseExcelFile(file: File): Promise<Record<string, unknown>[]> {
   return new Promise((resolve, reject) => {
