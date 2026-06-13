@@ -30,17 +30,18 @@ ALTER TABLE attachments
   ALTER COLUMN entity_type TYPE attachment_entity USING entity_type::attachment_entity;
 
 -- Drop now-orphaned enum types (CASCADE already removed dependent columns).
--- DEVIATION: lesson_role_type and interface_party_role are intentionally NOT dropped here.
--- lesson_role_type is still used by the retained project_lesson_role_assignments.role_type
--- column, and interface_party_role is still used by the retained
--- project_member_organization_roles.interface_role column.
+-- DEVIATION: the following are intentionally NOT dropped because retained tables
+-- still use them:
+--   * ll_type                -> lessons_v2.type
+--   * lesson_role_type        -> project_lesson_role_assignments.role_type
+--   * interface_party_role    -> project_member_organization_roles.interface_role
 DROP TYPE IF EXISTS
   agreement_status, asset_type, criticality, deliverable_status, discipline,
   interface_case_event_type, interface_case_state,
   iq_response_status, matrix_phase_column, moc_approval_decision, moc_approval_level,
   moc_implementation_status, moc_status, point_status, query_priority, query_status,
   register_status, scope_allocation_mode, tracker_item_status,
-  ll_change_request_status, ll_discipline, ll_ownership_state, ll_status, ll_type,
+  ll_change_request_status, ll_discipline, ll_ownership_state, ll_status,
   lesson_cycle_state, lesson_cycle_type, lesson_escalation_status,
   lesson_triage_decision, lesson_workflow_state, lesson_action_priority,
   lesson_action_status;
