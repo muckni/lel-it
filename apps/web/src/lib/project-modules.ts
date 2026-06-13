@@ -22,12 +22,12 @@ export const PROJECT_MODULES: Record<ProjectModuleKey, ModuleContract> = {
     accentClass: "border-emerald-500 text-emerald-700",
     badgeClass: "bg-emerald-100 text-emerald-800",
     nav: [
-      { label: "Cockpit", href: "/modules/lessons" },
+      { label: "Cockpit", href: "/lessons-v2" },
     ],
   },
 };
 
 export function inferProjectModuleFromPath(pathname: string): ProjectModuleKey | null {
-  if (pathname.includes("/modules/lessons")) return "lessons";
+  if (pathname.includes("/lessons-v2")) return "lessons";
   return null;
 }

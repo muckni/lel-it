@@ -17,7 +17,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notification-bell";
 import { LogoutButton } from "@/components/logout-button";
-import { ProjectModuleSwitcher } from "@/components/project-module-switcher";
 import {
   PROJECT_MODULES,
   inferProjectModuleFromPath,
@@ -89,7 +88,6 @@ export default function ProjectLayout({
           </Breadcrumb>
 
           <div className="ml-auto flex items-center gap-2 pr-2">
-            <ProjectModuleSwitcher />
             <NotificationBell />
             <LogoutButton />
           </div>
