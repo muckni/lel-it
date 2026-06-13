@@ -73,9 +73,13 @@ Delete the v1 lesson components, the v1 lesson pages, `work-package-form`, the
 `project-module-switcher`, and the corresponding `feature-flags` /
 `project-modules` entries.
 
-Keep: `lesson-v2`, `lesson-portfolio`, `project`, `attachment`, `comment`,
-`notification`, `activity`, `deadline` routers; shared auth, sidebar, and UI
-primitives.
+Keep: `lesson-v2`, `project`, `portfolio`, `notification`, `activity`, and
+`attachment` (rewritten — see below) routers; shared auth, sidebar, and UI
+primitives. The generic `comment` router, the `deadline` router, and the
+`lesson-portfolio` router are **deleted** — they are built on legacy/v1 tables
+(`comments`, `deliverables`, `lessonsLearned`, `lessonCycles`,
+`lessonTrackAActions`). The `project` and `activity` routers are edited to drop
+their interface-table usage.
 
 After removal, `pnpm --dir apps/web type-check` and the retained tests
 (`lesson-v2-workflow`, `lesson-v2-rbac`, `lesson-v2-transfer`) must pass with no
@@ -139,9 +143,9 @@ Add to `lessons_v2`:
 - `description` stays `not null`; on save the server derives/refreshes it as a
   plain-text excerpt from `content` when `content` is present.
 
-No other table changes. Attachments use existing `lesson_evidence` /
-`attachments` via the generic `attachment` router with `entityType = 'lesson'`,
-`entityId = lessonId`.
+No other table changes. Attachments use the `attachments` table via the
+`attachment` router, which is **rewritten** to support `entityType = 'lesson'`
+only (it is currently hardcoded to legacy entities — see Architecture E).
 
 ### D. Notion-style Lesson page
 
@@ -160,7 +164,9 @@ The cockpit list rows navigate here (replacing the side-drawer detail). Layout:
 - **Attachments section:** drag-drop + click upload via `attachment`
   router (Supabase Storage signed upload), file list with download/delete,
   scoped to this lesson.
-- **Comments:** existing `lesson_comments` thread, inline below the body.
+- **Comments:** a new v2 thread on the `lesson_comments` table (currently
+  unused), inline below the body. The old v1 thread + generic `comment` router
+  are deleted.
 
 ### E. New / changed server procedures
 
@@ -169,8 +175,11 @@ The cockpit list rows navigate here (replacing the side-drawer detail). Layout:
 - `lessonV2.updateLesson(projectId, lessonId, patch)` — partial update of
   `content` + properties; refreshes `description` excerpt; writes
   `lesson_audit_log`; RBAC-gated (author/reviewer/lead per existing rules).
-- Attachments reuse the generic `attachment` router unchanged (bind
-  `entityType='lesson'`).
+- `lessonV2.listComments` / `addComment` / `deleteComment` — new procedures on
+  `lesson_comments` (the table exists but has no router today).
+- `attachment` router rewritten: `entityType` enum reduced to `['lesson']`,
+  project-id resolution via `lessons_v2`; upload/list/download/delete logic
+  otherwise unchanged.
 
 ### F. Branding & docs
 
