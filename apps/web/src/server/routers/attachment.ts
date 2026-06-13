@@ -2,29 +2,37 @@ import { randomUUID } from "crypto";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { attachments, db } from "@owit/db";
+import { attachments, db, lessonsV2 } from "@owit/db";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   ALLOWED_ATTACHMENT_MIME_TYPES,
   MAX_ATTACHMENT_BYTES,
   hasAllowedAttachmentType,
 } from "@/lib/attachments";
-import { projectIdForDeliverable, projectIdForIqResponse, projectIdForPoint } from "@/server/lib/project-id";
 import { assertMember, requireRole } from "@/server/lib/rbac";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 
 const BUCKET = "attachments";
 const ALLOWED_MIME_TYPES = new Set(ALLOWED_ATTACHMENT_MIME_TYPES);
 
-const entityTypeSchema = z.enum(["interface_point", "deliverable", "iq_response"]);
+const entityTypeSchema = z.enum(["lesson"]);
+
+async function projectIdForLesson(lessonId: string): Promise<string> {
+  const row = await db.query.lessonsV2.findFirst({
+    where: eq(lessonsV2.id, lessonId),
+    columns: { projectId: true },
+  });
+  if (!row) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found" });
+  }
+  return row.projectId;
+}
 
 async function projectIdForAttachmentEntity(
-  entityType: z.infer<typeof entityTypeSchema>,
+  _entityType: z.infer<typeof entityTypeSchema>,
   entityId: string
 ): Promise<string> {
-  if (entityType === "interface_point") return projectIdForPoint(entityId);
-  if (entityType === "deliverable") return projectIdForDeliverable(entityId);
-  return projectIdForIqResponse(entityId);
+  return projectIdForLesson(entityId);
 }
 
 function sanitizeFileName(fileName: string): string {
