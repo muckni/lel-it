@@ -24,8 +24,9 @@ The spec assumed some infra was reusable as-is. Reading the code corrected three
 
 **Delete (whole files):**
 - Routers: `apps/web/src/server/routers/{work-package,register,agreement,interface-point,deliverable,interface-query,asset-placement,interface-case,interface-matrix,interface-report,interface-tracker,moc,model-registry,interface-workspace,cable-route,anchor-catalog,report,lesson-learned,lesson-ops,lesson-policy,lesson-report,lesson-portfolio,comment,deadline}.ts`
-- Server libs/tests: `apps/web/src/server/lib/{interface-compliance,lesson-rbac,lesson-workflow,lesson-visibility,project-id}.ts`; `apps/web/src/server/__tests__/{interface-compliance-rules,asset-anchor-catalog,lesson-visibility,lesson-workflow-rules}.test.ts`
+- Server libs/tests: `apps/web/src/server/lib/{interface-compliance,lesson-workflow,lesson-visibility,project-id}.ts`; `apps/web/src/server/__tests__/{interface-compliance-rules,asset-anchor-catalog,lesson-visibility,lesson-workflow-rules}.test.ts`. **Note:** `lesson-rbac.ts` is NOT deleted — retained `lesson-v2-rbac.ts` depends on its `listLessonRolesForUser`; it is trimmed to just that helper + `LessonRoleType` (reads the retained `project_lesson_role_assignments`/`project_members`).
 - Components/pages: `apps/web/src/components/lessons/{ll-card,ll-row,ll-detail-panel,create-ll-dialog,lesson-comments-thread,ll-badge,lessons-i18n}.tsx`; `apps/web/src/components/forms/work-package-form.tsx`; `apps/web/src/components/project-module-switcher.tsx`; `apps/web/src/app/(dashboard)/projects/[projectId]/lessons/page.tsx`; `apps/web/src/app/(dashboard)/projects/[projectId]/modules/lessons/page.tsx`; `apps/web/src/app/(dashboard)/lessons-portfolio/page.tsx`
+- Stray iCloud-conflict file: `apps/web/src/server/lib/lesson-rbac 2.ts` (untracked duplicate)
 - Shared: `packages/shared/src/{interface-compliance,asset-anchors}.ts`
 - Docs assets: interface SVGs/PNGs under `docs/assets/readme/`
 
@@ -226,6 +227,38 @@ In `project-modules.ts` remove interface modules and the `/modules/lessons` entr
 Run: `pnpm --dir apps/web type-check`
 Expected: only `attachment.ts` errors remain (fixed in Stage 3, Task 11).
 
+### Task 6b: Strip legacy work-package UI from settings + wizard
+
+**Files:** Modify `apps/web/src/app/(dashboard)/projects/[projectId]/settings/page.tsx`, `apps/web/src/components/wizards/project-setup-wizard.tsx`. Delete the stray `apps/web/src/server/lib/lesson-rbac 2.ts`.
+
+Context: these two files manage work packages (`trpc.workPackage.*`, `WorkPackageForm`, assigning members to work packages). Work packages are part of the deleted interface tooling, so this UI must go. The settings page also has legitimate project/member settings — keep those.
+
+- [ ] **Step 1: Remove work-package management from `settings/page.tsx`**
+
+Delete: the `WorkPackageForm` import; the `EditWorkPackageDialog` component; all `trpc.workPackage.*` queries/mutations (`list`, `create`, `update`, `delete`, `seedDefaults`); the entire "Work Packages" card/section; and the `workPackageIds`/`selectedWpIds` props and the work-package checkboxes from the member add/edit dialogs. Keep project settings and plain member management (`addMember`/`updateMember`/`removeMember` without `workPackageIds`). Ensure `addMember`/`updateMember` calls no longer pass `workPackageIds` (the `project` router no longer accepts it after Task 4).
+
+- [ ] **Step 2: Remove the work-package step from `project-setup-wizard.tsx`**
+
+Delete any work-package selection/seed step and its `trpc.workPackage.*` usage. If the wizard's sole purpose was work-package setup, reduce it to the remaining setup steps; if nothing meaningful remains, delete the component and remove its usages (check `create-project-dialog.tsx` and any importer).
+
+- [ ] **Step 3: Delete the stray duplicate file**
+
+```bash
+rm "apps/web/src/server/lib/lesson-rbac 2.ts"
+```
+
+- [ ] **Step 4: Type-check — only `attachment.ts` may remain**
+
+Run: `pnpm --dir apps/web type-check`
+Expected: the ONLY remaining error is `attachment.ts` importing the deleted `@/server/lib/project-id` (fixed in Task 15). No errors in `settings/page.tsx` or `project-setup-wizard.tsx`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add -A
+git commit -m "refactor: remove legacy work-package UI from settings and setup wizard"
+```
+
 ---
 
 ## Stage 2 — Database streamlining
@@ -248,9 +281,11 @@ Confirm `jsonb` is already imported at the top of `schema.ts` (it is used by oth
 
 - [ ] **Step 1: Remove legacy table definitions**
 
-Delete these `pgTable` exports and any Drizzle `relations()` blocks that reference them: `workPackages`, `interfaceRegisters`, `interfaceAgreements`, `interfacePoints`, `deliverables`, `interfaceQueries`, `iqResponses`, `assetPlacements`, `modelRegistryAssets`, `interfaceCases`, `interfaceCaseEvents`, `interfaceMatrixRevisions`, `interfaceMatrixRows`, `interfaceMatrixAllocations`, `interfaceMatrixPacks`, `interfaceMeetings`, `interfaceMeetingAttendance`, `interfaceMonthlyReports`, `interfaceAuditExports`, `interfaceTrackerItems`, `interfaceTrackerEvents`, `interfaceTrackerCaseLinks`, `mocChanges`, `mocApprovals`, `mocEntityLinks`, `cableRoutes`, `customAnchorDefinitions`, `memberWorkPackages`, `comments`, `lessonsLearned`, `lessonLearnedPoints`, `lessonLearnedChangeRequests`, `lessonPolicyProfiles`, `projectLessonPolicyAssignments`, `projectLessonRoleAssignments`, `lessonCycles`, `lessonTriageDecisions`, `lessonClusters`, `lessonClusterItems`, `lessonTrackAActions`, `lessonActionEvidence`, `lessonTrackBEscalations`, `lessonPackageReports`.
+Delete these `pgTable` exports and any Drizzle `relations()` blocks that reference them: `workPackages`, `interfaceRegisters`, `interfaceAgreements`, `interfacePoints`, `deliverables`, `interfaceQueries`, `iqResponses`, `assetPlacements`, `modelRegistryAssets`, `interfaceCases`, `interfaceCaseEvents`, `interfaceMatrixRevisions`, `interfaceMatrixRows`, `interfaceMatrixAllocations`, `interfaceMatrixPacks`, `interfaceMeetings`, `interfaceMeetingAttendance`, `interfaceMonthlyReports`, `interfaceAuditExports`, `interfaceTrackerItems`, `interfaceTrackerEvents`, `interfaceTrackerCaseLinks`, `mocChanges`, `mocApprovals`, `mocEntityLinks`, `cableRoutes`, `customAnchorDefinitions`, `memberWorkPackages`, `comments`, `lessonsLearned`, `lessonLearnedPoints`, `lessonLearnedChangeRequests`, `lessonPolicyProfiles`, `projectLessonPolicyAssignments`, `lessonCycles`, `lessonTriageDecisions`, `lessonClusters`, `lessonClusterItems`, `lessonTrackAActions`, `lessonActionEvidence`, `lessonTrackBEscalations`, `lessonPackageReports`.
 
-Keep: `attachments`, `deadlineDigestSends`, `portfolios`, `projects`, `projectMembers`, `userCorporateRoles`, `lessonProjectMemberships`, `lessonCategories`, `lessonWorkstreams`, `lessonGates`, `organizations`, `projectMemberOrganizationRoles`, `lessonsV2`, `lessonClustersV2`, `lessonClusterLinksV2`, `recommendedActions`, `corporateRecommendedActions`, `projectActions`, `actionAssignments`, `lessonEvidence`, `lessonComments`, `lessonAuditLog`, `notifications`, `activities`.
+**KEEP — do NOT drop `projectLessonRoleAssignments`** (table `project_lesson_role_assignments`): it is read by the retained `lesson-v2-rbac.ts` via `lesson-rbac.ts` `listLessonRolesForUser`. Its enum `project_lesson_role` is also kept.
+
+Keep: `attachments`, `deadlineDigestSends`, `portfolios`, `projects`, `projectMembers`, `userCorporateRoles`, `lessonProjectMemberships`, `projectLessonRoleAssignments`, `lessonCategories`, `lessonWorkstreams`, `lessonGates`, `organizations`, `projectMemberOrganizationRoles`, `lessonsV2`, `lessonClustersV2`, `lessonClusterLinksV2`, `recommendedActions`, `corporateRecommendedActions`, `projectActions`, `actionAssignments`, `lessonEvidence`, `lessonComments`, `lessonAuditLog`, `notifications`, `activities`.
 
 - [ ] **Step 2: Remove legacy `pgEnum` definitions**
 
@@ -298,10 +333,11 @@ DROP TABLE IF EXISTS
   custom_anchor_definitions, member_work_packages, work_packages, comments,
   lesson_package_reports, lesson_track_b_escalations, lesson_action_evidence,
   lesson_track_a_actions, lesson_cluster_items, lesson_clusters,
-  lesson_triage_decisions, lesson_cycles, project_lesson_role_assignments,
+  lesson_triage_decisions, lesson_cycles,
   project_lesson_policy_assignments, lesson_policy_profiles,
   lesson_learned_change_requests, lesson_learned_points, lessons_learned
 CASCADE;
+-- NOTE: project_lesson_role_assignments is intentionally NOT dropped (used by v2 RBAC).
 
 -- Migrate the attachment_entity enum to lesson-only.
 ALTER TABLE attachments
