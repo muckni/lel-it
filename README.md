@@ -156,6 +156,51 @@ Open:
 - Corporate proposals: `/corporate/proposals`
 - Corporate dashboard: `/corporate/dashboard`
 
+## Email-to-Lesson Inbox
+
+Forward or CC an email to a lel-it inbound address to capture it as a draft lesson candidate.
+
+**How it works:**
+
+- A registered user forwards or CCs an email to a Postmark inbound address.
+- If the email's `From` address matches a registered user's account email, the email is captured into that user's personal Inbox (`/inbox`), including any attachments.
+- From the Inbox, the user assigns the item to a project and category to turn it into a draft lesson (attachments carry over).
+- Emails from unrecognized senders are dropped (not stored).
+
+**Env vars:**
+
+- `INBOUND_EMAIL_SECRET` - shared secret embedded in the webhook URL path.
+- Also relies on existing `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (attachment storage) and `DATABASE_URL`.
+
+**Webhook URL:**
+
+```text
+https://<host>/api/inbound/email/<INBOUND_EMAIL_SECRET>   (POST)
+```
+
+- A mismatched secret returns `401`.
+- Unknown-sender, duplicate, or malformed payloads return `200` (so Postmark does not retry).
+
+**Postmark inbound setup:**
+
+1. Point your Postmark inbound server's webhook at the URL above.
+2. Set the inbound domain's MX records to Postmark, per [Postmark's inbound domain forwarding docs](https://postmarkapp.com/support/article/1064-inbound-domain-forwarding).
+3. Postmark posts parsed JSON (`From`, `Subject`, `TextBody`, `Attachments`, ...). Deduplication is by the Postmark `MessageID`.
+
+**Roadmap:** Slack and Teams bots will offer the same "tag -> capture" flow in future.
+
+**Local testing:**
+
+With `INBOUND_EMAIL_SECRET=devsecret` set:
+
+```bash
+curl -X POST http://localhost:3000/api/inbound/email/devsecret \
+  -H 'Content-Type: application/json' \
+  -d '{"FromFull":{"Email":"<your-auth-user-email>","Name":"Dev"},"MessageID":"smoke-1","Subject":"Smoke test lesson","TextBody":"Body line one\nBody line two","Date":"2026-06-14T10:00:00Z","Attachments":[]}'
+```
+
+Expected response: `{"status":"captured", ...}`. The item then appears at `/inbox`.
+
 ## Operational Checks
 
 Useful verification commands:

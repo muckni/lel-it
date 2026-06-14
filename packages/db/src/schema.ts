@@ -35,6 +35,12 @@ export const projectStatusEnum = pgEnum("project_status", [
 
 export const attachmentEntityEnum = pgEnum("attachment_entity", ["lesson"]);
 
+export const inboxItemStatusEnum = pgEnum("inbox_item_status", [
+  "new",
+  "assigned",
+  "discarded",
+]);
+
 export const organizationTypeEnum = pgEnum("organization_type", [
   "employer",
   "contractor",
@@ -385,6 +391,56 @@ export const attachments = pgTable(
       table.entityId,
       table.createdAt
     ),
+  ]
+);
+
+export const inboxItems = pgTable(
+  "inbox_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(), // references Supabase auth.users
+    messageId: text("message_id").notNull(),
+    fromEmail: text("from_email").notNull(),
+    fromName: text("from_name"),
+    subject: text("subject").notNull().default(""),
+    textBody: text("text_body").notNull().default(""),
+    htmlBody: text("html_body"),
+    status: inboxItemStatusEnum("status").notNull().default("new"),
+    lessonId: uuid("lesson_id").references(() => lessonsV2.id, {
+      onDelete: "set null",
+    }),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("inbox_items_message_id_idx").on(table.messageId),
+    index("inbox_items_user_status_idx").on(
+      table.userId,
+      table.status,
+      table.receivedAt
+    ),
+  ]
+);
+
+export const inboxItemAttachments = pgTable(
+  "inbox_item_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    inboxItemId: uuid("inbox_item_id")
+      .notNull()
+      .references(() => inboxItems.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    storagePath: text("storage_path").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("inbox_item_attachments_item_idx").on(table.inboxItemId),
   ]
 );
 
@@ -1117,3 +1173,21 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
     references: [projects.id],
   }),
 }));
+
+export const inboxItemsRelations = relations(inboxItems, ({ one, many }) => ({
+  lesson: one(lessonsV2, {
+    fields: [inboxItems.lessonId],
+    references: [lessonsV2.id],
+  }),
+  attachments: many(inboxItemAttachments),
+}));
+
+export const inboxItemAttachmentsRelations = relations(
+  inboxItemAttachments,
+  ({ one }) => ({
+    inboxItem: one(inboxItems, {
+      fields: [inboxItemAttachments.inboxItemId],
+      references: [inboxItems.id],
+    }),
+  })
+);
