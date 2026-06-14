@@ -1,5 +1,20 @@
 export const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 
+export const ATTACHMENT_BUCKET = "attachments";
+
+/**
+ * Normalize a user/email-supplied file name into a storage-safe segment:
+ * strips characters outside a small allow-list, collapses whitespace, and
+ * truncates. Prevents path traversal when composing storage paths.
+ */
+export function sanitizeAttachmentFileName(fileName: string): string {
+  return fileName
+    .trim()
+    .replace(/[^\w.\-() ]+/g, "_")
+    .replace(/\s+/g, "_")
+    .slice(0, 180);
+}
+
 export const ALLOWED_ATTACHMENT_MIME_TYPES = [
   "application/pdf",
   "application/acad",
