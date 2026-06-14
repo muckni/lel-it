@@ -5,6 +5,7 @@ import { notificationRouter } from "./notification";
 import { activityRouter } from "./activity";
 import { attachmentRouter } from "./attachment";
 import { lessonV2Router } from "./lesson-v2";
+import { inboxRouter } from "./inbox";
 
 export const appRouter = createTRPCRouter({
   project: projectRouter,
@@ -13,6 +14,7 @@ export const appRouter = createTRPCRouter({
   activity: activityRouter,
   attachment: attachmentRouter,
   lessonV2: lessonV2Router,
+  inbox: inboxRouter,
 });
 
 export type AppRouter = typeof appRouter;
