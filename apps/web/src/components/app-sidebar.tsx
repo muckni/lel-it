@@ -14,6 +14,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuBadge,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarRail,
@@ -25,6 +26,7 @@ import {
   BarChart3Icon,
   LibraryIcon,
   Rows3Icon,
+  InboxIcon,
   MessageSquareTextIcon,
 } from "lucide-react";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
@@ -48,6 +50,7 @@ export function AppSidebar({ initialProjects, ...props }: AppSidebarProps) {
       enabled: initialProjects === undefined,
     }
   );
+  const { data: inbox } = useQuery(trpc.inbox.list.queryOptions());
 
   const projects: SidebarProject[] =
     initialProjects ?? portfolios.flatMap((p) => p.projects ?? []);
@@ -82,6 +85,18 @@ export function AppSidebar({ initialProjects, ...props }: AppSidebarProps) {
                 <Rows3Icon className="size-4" />
                 <span>Lessons</span>
               </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<a href="/inbox" />}
+                isActive={pathname.startsWith("/inbox")}
+              >
+                <InboxIcon className="size-4" />
+                <span>Inbox</span>
+              </SidebarMenuButton>
+              {inbox?.count ? (
+                <SidebarMenuBadge>{inbox.count}</SidebarMenuBadge>
+              ) : null}
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
